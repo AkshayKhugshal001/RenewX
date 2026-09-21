@@ -1,8 +1,9 @@
 import { NavLink } from 'react-router-dom'
 import {
   Sun, LayoutDashboard, Factory, TrendingUp, Sparkles,
-  Snowflake, Wrench, Leaf, FileText, Settings, ChevronDown,
+  Snowflake, Wrench, Leaf, FileText, Settings, ChevronDown, Plus,
 } from 'lucide-react'
+import { usePlants } from '../../context/PlantContext'
 
 const NAV = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -16,8 +17,8 @@ const NAV = [
   { to: '/settings', label: 'Settings', icon: Settings },
 ]
 
-export default function Sidebar({ plants, plantId, onPlantChange }) {
-  const plant = plants.find((p) => p.id === plantId)
+export default function Sidebar() {
+  const { plants, activePlant: plant, selectPlant, openAddPlant } = usePlants()
 
   return (
     <aside className="sidebar">
@@ -43,6 +44,7 @@ export default function Sidebar({ plants, plantId, onPlantChange }) {
         {plant ? (
           <>
             <strong>{plant.name}</strong>
+            {plant.location && <span>{plant.location}</span>}
             <span>
               {plant.capacity_mw ?? 0} MW | {plant.grid_connected ? 'Grid Connected' : 'Off-grid'}
             </span>
@@ -58,15 +60,24 @@ export default function Sidebar({ plants, plantId, onPlantChange }) {
           </>
         )}
 
-        <div className="switch">
-          <select value={plantId ?? ''} onChange={(e) => onPlantChange(e.target.value)} disabled={plants.length === 0}>
-            {plants.length === 0 && <option value="">Switch Plant</option>}
-            {plants.map((p) => (
-              <option key={p.id} value={p.id}>{p.name}</option>
-            ))}
-          </select>
-          <ChevronDown size={16} />
-        </div>
+        {plants.length > 0 && (
+          <div className="switch">
+            <select
+              value={plant?.id ?? ''}
+              onChange={(e) => selectPlant(e.target.value)}
+              aria-label="Switch plant"
+            >
+              {plants.map((p) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+            <ChevronDown size={16} />
+          </div>
+        )}
+
+        <button className="add-plant" onClick={openAddPlant}>
+          <Plus size={16} /> Add plant
+        </button>
       </div>
     </aside>
   )

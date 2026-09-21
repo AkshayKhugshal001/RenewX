@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Search, Bell, ChevronDown, LogOut } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
+import PlantSwitcher from './PlantSwitcher'
 
 export default function Header() {
   const { user, profile, signOut } = useAuth()
@@ -15,6 +16,8 @@ export default function Header() {
         <Search size={18} />
         <input placeholder="Search for data, insights, or actions..." />
       </label>
+
+      <PlantSwitcher />
 
       <button className="icon-btn" aria-label="Notifications">
         <Bell size={22} />
