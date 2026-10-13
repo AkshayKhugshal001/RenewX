@@ -3,6 +3,8 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from './AuthContext'
 import PlantFormModal from '../components/PlantFormModal'
+import UploadDataModal from '../components/UploadDataModal'
+import { uploadPlantCsv } from '../lib/plantDataUpload'
 
 const PlantContext = createContext(null)
 
@@ -37,6 +39,7 @@ export function PlantProvider({ children }) {
   const [loadedFor, setLoadedFor] = useState(null) // which user the `plants` state belongs to
   const [loadError, setLoadError] = useState('')
   const [modal, setModal] = useState(null) // null | { plant: null (add) | plantRow (edit) }
+  const [uploadFor, setUploadFor] = useState(null) // null | plantRow whose data is being uploaded
 
   // Load this user's plants (RLS also guarantees only their own rows come back)
   useEffect(() => {
@@ -71,7 +74,7 @@ export function PlantProvider({ children }) {
   )
 
   const addPlant = useCallback(
-    async (values) => {
+    async (values, csvFile) => {
       const { data, error } = await supabase
         .from('plants')
         .insert({ ...toRow(values), owner_id: userId })
@@ -80,6 +83,12 @@ export function PlantProvider({ children }) {
       if (error) return { error: friendlyError(error) }
       setPlants((prev) => [...prev, data])
       selectPlant(data.id) // jump straight to the plant that was just created
+
+      // Optional historical CSV. The plant already exists, so a failed upload must not undo it.
+      if (csvFile) {
+        const res = await uploadPlantCsv(data.id, csvFile, 'historical')
+        if (res.error) return { data, uploadError: res.error }
+      }
       return { data }
     },
     [userId, selectPlant],
@@ -117,6 +126,7 @@ export function PlantProvider({ children }) {
       deletePlant,
       openAddPlant: () => setModal({ plant: null }),
       openEditPlant: (plant) => setModal({ plant }),
+      openUploadData: (plant) => setUploadFor(plant),
     }),
     [list, activePlant, loading, loadError, selectPlant, addPlant, updatePlant, deletePlant],
   )
@@ -128,9 +138,10 @@ export function PlantProvider({ children }) {
         <PlantFormModal
           plant={modal.plant}
           onClose={() => setModal(null)}
-          onSubmit={(values) => (modal.plant ? updatePlant(modal.plant.id, values) : addPlant(values))}
+          onSubmit={(values, csvFile) => (modal.plant ? updatePlant(modal.plant.id, values) : addPlant(values, csvFile))}
         />
       )}
+      {uploadFor && <UploadDataModal plant={uploadFor} onClose={() => setUploadFor(null)} />}
     </PlantContext.Provider>
   )
 }

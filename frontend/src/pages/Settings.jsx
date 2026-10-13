@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import { Plus, Pencil, Trash2 } from 'lucide-react'
+import { Plus, Pencil, Trash2, Upload } from 'lucide-react'
 import { usePlants } from '../context/PlantContext'
 
 export default function Settings() {
-  const { plants, activePlant, loading, selectPlant, openAddPlant, openEditPlant, deletePlant } = usePlants()
+  const { plants, activePlant, loading, selectPlant, openAddPlant, openEditPlant, openUploadData, deletePlant } = usePlants()
   const [error, setError] = useState('')
   const [deletingId, setDeletingId] = useState(null)
 
@@ -58,6 +58,9 @@ export default function Settings() {
                     {!isActive && (
                       <button className="btn sm" onClick={() => selectPlant(p.id)}>Switch to</button>
                     )}
+                    <button className="btn sm" onClick={() => openUploadData(p)}>
+                      <Upload size={14} /> Upload data
+                    </button>
                     <button className="btn sm" onClick={() => openEditPlant(p)}>
                       <Pencil size={14} /> Edit
                     </button>

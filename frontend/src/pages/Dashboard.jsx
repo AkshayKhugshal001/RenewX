@@ -6,9 +6,10 @@ import {
 } from 'recharts'
 import {
   Zap, IndianRupee, Droplet, Leaf, Sprout, Settings, Sun, Thermometer, Wind,
-  TrendingUp, Lightbulb, ChevronRight, ArrowUp, ArrowDown, Radio, CalendarDays,
+  TrendingUp, Lightbulb, ChevronRight, ArrowUp, ArrowDown, Radio, CalendarDays, Upload,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import { usePlants } from '../context/PlantContext'
 import { emptyDashboard, fetchDashboard } from '../lib/dashboardData'
 
 const inr = (n) => `₹ ${Number(n).toLocaleString('en-IN')}`
@@ -57,6 +58,7 @@ const axis = { tick: { fontSize: 12, fill: '#64748b' }, axisLine: false, tickLin
 export default function Dashboard() {
   const { user, profile } = useAuth()
   const { plant } = useOutletContext()
+  const { openUploadData } = usePlants()
   const [data, setData] = useState(emptyDashboard)
   const [powerRange, setPowerRange] = useState('Today')
   const [waterRange, setWaterRange] = useState('Week')
@@ -86,6 +88,11 @@ export default function Dashboard() {
         <div className="pills">
           <span className="pill"><Radio size={16} /> Live Data</span>
           <span className="pill"><CalendarDays size={16} /> {today}</span>
+          {plant && (
+            <button className="pill pill-action" onClick={() => openUploadData(plant)}>
+              <Upload size={16} /> Upload data
+            </button>
+          )}
         </div>
       </div>
 
