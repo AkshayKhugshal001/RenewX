@@ -1,8 +1,7 @@
 // CSV upload for plant data (historical or daily add-on).
-//
-// Right now this only checks the file and hands it over. Parsing + saving to Supabase
-// (and the table that stores it) will be added later – replace the body of
-// uploadPlantCsv() and keep the same signature, so no UI code has to change.
+// The file is sent to the RenewX backend (FastAPI), which cleans it, stores the readings in Supabase,
+// recalculates daily statistics + alarms for the days it covers, and refreshes the forecast.
+import { apiPost } from './api'
 
 export const MAX_CSV_MB = 50
 
@@ -22,10 +21,13 @@ export const formatSize = (bytes) =>
  * @param {string} plantId
  * @param {File}   file
  * @param {'historical' | 'daily'} kind
- * @returns {Promise<{ error?: string, message?: string }>}
+ * @param {'skip' | 'replace'} mode  what to do with timestamps that are already stored
+ * @returns {Promise<{ error?: string, result?: object }>}  result = the backend's upload report
  */
-// eslint-disable-next-line no-unused-vars
-export async function uploadPlantCsv(plantId, file, kind) {
-  // TODO: parse the CSV and save the rows for this plant (table not created yet).
-  return { message: 'File accepted. Saving is not connected yet, so nothing has been stored.' }
+export function uploadPlantCsv(plantId, file, kind, mode = 'skip') {
+  const body = new FormData()
+  body.append('file', file)
+  body.append('kind', kind)
+  body.append('mode', mode)
+  return apiPost(`/plants/${plantId}/uploads`, body)
 }

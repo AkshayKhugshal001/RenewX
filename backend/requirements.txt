@@ -1,0 +1,12 @@
+# RenewX backend
+fastapi>=0.115,<1
+uvicorn>=0.30,<1
+python-multipart>=0.0.9      # file uploads in FastAPI
+pandas>=2.2,<3               # CSV parsing, cleaning, statistics
+psycopg[binary]>=3.2,<4      # direct PostgreSQL connection to Supabase
+httpx>=0.27,<1               # verify the user's Supabase login token
+python-dotenv>=1.0,<2        # read backend/.env
+scikit-learn>=1.5,<2         # forecasting models (Random Forest, Gradient Boosting)
+
+# development only
+pytest>=8,<9

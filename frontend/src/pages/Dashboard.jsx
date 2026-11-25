@@ -58,20 +58,24 @@ const axis = { tick: { fontSize: 12, fill: '#64748b' }, axisLine: false, tickLin
 export default function Dashboard() {
   const { user, profile } = useAuth()
   const { plant } = useOutletContext()
-  const { openUploadData } = usePlants()
+  const { openUploadData, dataVersion } = usePlants()
   const [data, setData] = useState(emptyDashboard)
+  const [loadError, setLoadError] = useState('')
   const [powerRange, setPowerRange] = useState('Today')
   const [waterRange, setWaterRange] = useState('Week')
 
-  const plantId = plant?.id
+  // refetch when the plant changes or after an upload (dataVersion)
   useEffect(() => {
     let cancelled = false
-    fetchDashboard(plantId).then((d) => !cancelled && setData(d))
+    fetchDashboard(plant)
+      .then((d) => { if (!cancelled) { setData(d); setLoadError('') } })
+      .catch((e) => { if (!cancelled) { setData(emptyDashboard()); setLoadError(e.message || 'Could not load plant data.') } })
     return () => { cancelled = true }
-  }, [plantId])
+  }, [plant, dataVersion])
 
   const firstName = (profile?.full_name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'there').split(' ')[0]
-  const today = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+  const fmtDate = (d) => d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
+  const dateLabel = data.asOf ? `Data for ${fmtDate(new Date(`${data.asOf}T12:00:00Z`))}` : fmtDate(new Date())
   const { kpis, metrics, recommendation: rec } = data
 
   const lossTotal = data.losses.reduce((s, l) => s + l.value, 0)
@@ -82,12 +86,17 @@ export default function Dashboard() {
       <div className="welcome">
         <div>
           <h1>Welcome back, {firstName}!</h1>
-          <p>Here&apos;s how your solar plant is performing today.</p>
+          <p>
+            {data.hasData
+              ? 'Here’s how your solar plant performed on its latest day of data.'
+              : plant ? 'No data yet for this plant. Upload a CSV to see its performance.' : 'Add a plant to get started.'}
+          </p>
+          {loadError && <p className="msg error">{loadError}</p>}
         </div>
         <p className="tagline">Cleaner Energy<br />Brighter Tomorrow</p>
         <div className="pills">
-          <span className="pill"><Radio size={16} /> Live Data</span>
-          <span className="pill"><CalendarDays size={16} /> {today}</span>
+          <span className="pill"><Radio size={16} /> {data.hasData ? 'Uploaded Data' : 'No Data'}</span>
+          <span className="pill"><CalendarDays size={16} /> {dateLabel}</span>
           {plant && (
             <button className="pill pill-action" onClick={() => openUploadData(plant)}>
               <Upload size={16} /> Upload data
@@ -97,17 +106,17 @@ export default function Dashboard() {
       </div>
 
       <section className="kpis">
-        <Kpi icon={Zap} tone="lime" label="Today's Generation" value={`${num(kpis.generationKwh)} kWh`}>
-          <Delta value={kpis.deltas.generation} suffix="vs. yesterday" />
+        <Kpi icon={Zap} tone="lime" label="Daily Generation" value={`${num(kpis.generationKwh)} kWh`}>
+          <Delta value={kpis.deltas.generation} suffix="vs. previous day" />
         </Kpi>
-        <Kpi icon={IndianRupee} tone="teal" label="Net Profit (Today)" value={inr(kpis.netProfit)}>
-          <Delta value={kpis.deltas.profit} suffix="vs. yesterday" />
+        <Kpi icon={IndianRupee} tone="teal" label="Revenue (Day)" value={inr(kpis.revenue)}>
+          <Delta value={kpis.deltas.revenue} suffix="vs. previous day" />
         </Kpi>
         <Kpi icon={Droplet} tone="blue" label="Water Usage" value={`${num(kpis.waterLitres)} L`}>
           <Delta value={kpis.deltas.water} goodWhen="down" suffix="vs. last week" />
         </Kpi>
-        <Kpi icon={Leaf} tone="green" label="Carbon Emissions" value={<>{num(kpis.carbonKg)} kg CO<sub>2</sub>e</>}>
-          <Delta value={kpis.deltas.carbon} goodWhen="down" suffix="vs. baseline" />
+        <Kpi icon={Leaf} tone="green" label="CO₂ Avoided (Day)" value={<>{num(kpis.co2AvoidedKg)} kg CO<sub>2</sub></>}>
+          <Delta value={kpis.deltas.co2} suffix="vs. previous day" />
         </Kpi>
         <Kpi icon={Sprout} tone="green" label="Ecological Risk" value={kpis.ecologicalRisk ?? '—'}>
           <span className="delta flat"><small>{kpis.ecologicalRisk ? 'No critical issues' : 'No data yet'}</small></span>
@@ -125,7 +134,7 @@ export default function Dashboard() {
           </div>
           <div className="legend">
             <span><i className="sw solid" /> Actual</span>
-            <span><i className="sw dashed" /> Forecast</span>
+            <span><i className="sw dashed" /> Expected</span>
           </div>
           <div className="chart">
             <ResponsiveContainer width="100%" height={260}>
@@ -138,10 +147,10 @@ export default function Dashboard() {
                 </defs>
                 <CartesianGrid stroke="#e8edf3" vertical={false} />
                 <XAxis dataKey="label" {...axis} interval="preserveStartEnd" />
-                <YAxis {...axis} domain={yDomain} unit=" kW" width={64} />
-                <Tooltip />
+                <YAxis {...axis} domain={yDomain} unit={data.powerUnit[powerRange]} width={72} />
+                <Tooltip formatter={(v, name) => [v == null ? '—' : `${num(v)}${data.powerUnit[powerRange]}`, name]} />
                 <Area type="monotone" dataKey="actual" name="Actual" stroke="#16a34a" strokeWidth={2.5} fill="url(#gen)" />
-                <Line type="monotone" dataKey="forecast" name="Forecast" stroke="#2563eb" strokeWidth={2} strokeDasharray="6 5" dot={false} />
+                <Line type="monotone" dataKey="forecast" name="Expected" stroke="#2563eb" strokeWidth={2} strokeDasharray="6 5" dot={false} />
               </ComposedChart>
             </ResponsiveContainer>
           </div>
@@ -187,7 +196,7 @@ export default function Dashboard() {
 
       <section className="row row-3">
         <div className="card">
-          <h2>Loss Analysis (Today)</h2>
+          <h2>Loss Analysis (Day)</h2>
           <div className="loss">
             <div className="donut">
               <PieChart width={190} height={190}>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { X } from 'lucide-react'
 import CsvPicker from './CsvPicker'
+import LocationSearch from './LocationSearch'
 
 // Used for both "Add plant" (plant = null) and "Edit plant" (plant = existing row).
 // `onSubmit(values, csvFile)` must resolve to { error?: string, uploadError?: string }.
@@ -13,6 +14,10 @@ export default function PlantFormModal({ plant, onClose, onSubmit }) {
     capacity_mw: plant?.capacity_mw ?? '',
     grid_connected: plant?.grid_connected ?? true,
     status: plant?.status ?? 'online',
+    tariff_inr_per_kwh: plant?.tariff_inr_per_kwh ?? '',
+    latitude: plant?.latitude ?? '',
+    longitude: plant?.longitude ?? '',
+    timezone: plant?.timezone ?? 'Asia/Kolkata',
   })
   const [csvFile, setCsvFile] = useState(null)
   const [busy, setBusy] = useState(false)
@@ -34,6 +39,10 @@ export default function PlantFormModal({ plant, onClose, onSubmit }) {
 
     if (!form.name.trim()) return setError('Plant name is required.')
     if (form.capacity_mw !== '' && Number(form.capacity_mw) < 0) return setError('Capacity cannot be negative.')
+    if (form.tariff_inr_per_kwh !== '' && Number(form.tariff_inr_per_kwh) < 0) return setError('Tariff cannot be negative.')
+    if (form.latitude !== '' && Math.abs(Number(form.latitude)) > 90) return setError('Latitude must be between -90 and 90.')
+    if (form.longitude !== '' && Math.abs(Number(form.longitude)) > 180) return setError('Longitude must be between -180 and 180.')
+    if ((form.latitude === '') !== (form.longitude === '')) return setError('Enter both latitude and longitude, or neither.')
 
     setBusy(true)
     const { error, uploadError } = await onSubmit(form, csvFile)
@@ -59,10 +68,26 @@ export default function PlantFormModal({ plant, onClose, onSubmit }) {
           <input value={form.name} onChange={set('name')} placeholder="e.g. Solar Plant 1" maxLength={80} autoFocus />
         </label>
 
-        <label className="field">
+        <div className="field">
           Location
-          <input value={form.location} onChange={set('location')} placeholder="e.g. Dehradun, Uttarakhand" maxLength={120} />
-        </label>
+          <LocationSearch
+            value={form.location}
+            onChange={(location) => setForm((f) => ({ ...f, location }))}
+            onPick={(place) => setForm((f) => ({ ...f, ...place }))}
+            disabled={busy}
+          />
+        </div>
+
+        <div className="field-row">
+          <label className="field">
+            Latitude
+            <input type="number" step="any" value={form.latitude} onChange={set('latitude')} placeholder="filled from location" />
+          </label>
+          <label className="field">
+            Longitude
+            <input type="number" step="any" value={form.longitude} onChange={set('longitude')} placeholder="filled from location" />
+          </label>
+        </div>
 
         <div className="field-row">
           <label className="field">
@@ -77,6 +102,13 @@ export default function PlantFormModal({ plant, onClose, onSubmit }) {
             </select>
           </label>
         </div>
+
+        <label className="field">
+          Tariff (₹ per kWh)
+          <input type="number" min="0" step="0.01" value={form.tariff_inr_per_kwh} onChange={set('tariff_inr_per_kwh')} placeholder="e.g. 3.50" />
+        </label>
+
+        <small className="hint">Capacity is used for performance ratio, tariff for revenue, and location for weather and forecasts.</small>
 
         <label className="check">
           <input type="checkbox" checked={form.grid_connected} onChange={set('grid_connected')} />

@@ -6,7 +6,8 @@ import PagePlaceholder from './components/PagePlaceholder'
 import Layout from './components/layout/layout'
 import Auth from './pages/Auth'
 import Dashboard from './pages/Dashboard'
-import Analytics from './pages/Analytics'
+import PlantOverview from './pages/PlantOverview'
+import Forecasting from './pages/Forecasting'
 import Anomalies from './pages/Anomalies'
 import Optimization from './pages/Optimization'
 import Maintenance from './pages/Maintenance'
@@ -24,8 +25,8 @@ export default function App() {
               <Route element={<Layout />}>
                 <Route index element={<Navigate to="/dashboard" replace />} />
                 <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/plant-overview" element={<PagePlaceholder title="Plant Overview" />} />
-                <Route path="/forecasting" element={<Analytics />} />
+                <Route path="/plant-overview" element={<PlantOverview />} />
+                <Route path="/forecasting" element={<Forecasting />} />
                 <Route path="/recommendations" element={<Optimization />} />
                 <Route path="/cleaning-cooling" element={<PagePlaceholder title="Cleaning & Cooling" />} />
                 <Route path="/maintenance" element={<Maintenance />} />

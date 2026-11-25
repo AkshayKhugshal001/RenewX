@@ -1,0 +1,22 @@
+# Secrets (only the .env.example templates are committed)
+.env
+.env.*
+!.env.example
+
+# Dependencies / builds
+node_modules/
+dist/
+.venv/
+venv/
+
+# Python caches
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini

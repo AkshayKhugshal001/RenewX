@@ -5,10 +5,12 @@ import { useAuth } from './AuthContext'
 import PlantFormModal from '../components/PlantFormModal'
 import UploadDataModal from '../components/UploadDataModal'
 import { uploadPlantCsv } from '../lib/plantDataUpload'
+import { refreshForecast } from '../lib/api'
 
 const PlantContext = createContext(null)
 
-const COLUMNS = 'id, name, location, capacity_mw, grid_connected, status, created_at'
+const COLUMNS =
+  'id, name, location, capacity_mw, grid_connected, status, latitude, longitude, timezone, tariff_inr_per_kwh, created_at'
 const storageKey = (userId) => `renewx:active-plant:${userId}`
 
 // localStorage can throw (private mode, blocked storage) – never let that break the app
@@ -19,12 +21,18 @@ const writeSaved = (userId, id) => {
   try { localStorage.setItem(storageKey(userId), id) } catch { /* ignore */ }
 }
 
+const optionalNumber = (x) => (x === '' || x === null || x === undefined ? null : Number(x))
+
 const toRow = (v) => ({
   name: v.name.trim(),
   location: v.location?.trim() || null,
   capacity_mw: Number(v.capacity_mw) || 0,
   grid_connected: Boolean(v.grid_connected),
   status: v.status,
+  latitude: optionalNumber(v.latitude),
+  longitude: optionalNumber(v.longitude),
+  tariff_inr_per_kwh: Number(v.tariff_inr_per_kwh) || 0,
+  timezone: v.timezone || 'Asia/Kolkata',
 })
 
 const friendlyError = (error) =>
@@ -40,6 +48,13 @@ export function PlantProvider({ children }) {
   const [loadError, setLoadError] = useState('')
   const [modal, setModal] = useState(null) // null | { plant: null (add) | plantRow (edit) }
   const [uploadFor, setUploadFor] = useState(null) // null | plantRow whose data is being uploaded
+  const [dataVersion, setDataVersion] = useState(0) // bumped after every successful upload -> pages refetch
+  const notifyDataChanged = useCallback(() => setDataVersion((v) => v + 1), [])
+  // New forecast in the background (e.g. after the location or capacity changed); pages refetch when done
+  const refreshInBackground = useCallback(
+    (id) => refreshForecast(id).then((res) => !res.error && notifyDataChanged()),
+    [notifyDataChanged],
+  )
 
   // Load this user's plants (RLS also guarantees only their own rows come back)
   useEffect(() => {
@@ -88,23 +103,32 @@ export function PlantProvider({ children }) {
       if (csvFile) {
         const res = await uploadPlantCsv(data.id, csvFile, 'historical')
         if (res.error) return { data, uploadError: res.error }
+        notifyDataChanged() // the upload already refreshed the forecast
+      } else if (data.latitude != null && data.capacity_mw > 0) {
+        refreshInBackground(data.id) // a new plant gets a physics-based forecast straight away
       }
       return { data }
     },
-    [userId, selectPlant],
+    [userId, selectPlant, notifyDataChanged, refreshInBackground],
   )
 
-  const updatePlant = useCallback(async (id, values) => {
-    const { data, error } = await supabase
-      .from('plants')
-      .update(toRow(values))
-      .eq('id', id)
-      .select(COLUMNS)
-      .single()
-    if (error) return { error: friendlyError(error) }
-    setPlants((prev) => prev.map((p) => (p.id === id ? data : p)))
-    return { data }
-  }, [])
+  const updatePlant = useCallback(
+    async (id, values) => {
+      const before = plants.find((p) => p.id === id)
+      const { data, error } = await supabase
+        .from('plants')
+        .update(toRow(values))
+        .eq('id', id)
+        .select(COLUMNS)
+        .single()
+      if (error) return { error: friendlyError(error) }
+      setPlants((prev) => prev.map((p) => (p.id === id ? data : p)))
+      const changed = ['latitude', 'longitude', 'capacity_mw', 'timezone'].some((k) => String(before?.[k]) !== String(data[k]))
+      if (changed && data.latitude != null) refreshInBackground(id) // forecasts depend on these
+      return { data }
+    },
+    [plants, refreshInBackground],
+  )
 
   const deletePlant = useCallback(async (id) => {
     const { error } = await supabase.from('plants').delete().eq('id', id)
@@ -127,8 +151,10 @@ export function PlantProvider({ children }) {
       openAddPlant: () => setModal({ plant: null }),
       openEditPlant: (plant) => setModal({ plant }),
       openUploadData: (plant) => setUploadFor(plant),
+      dataVersion,
+      notifyDataChanged,
     }),
-    [list, activePlant, loading, loadError, selectPlant, addPlant, updatePlant, deletePlant],
+    [list, activePlant, loading, loadError, selectPlant, addPlant, updatePlant, deletePlant, dataVersion, notifyDataChanged],
   )
 
   return (
@@ -141,7 +167,9 @@ export function PlantProvider({ children }) {
           onSubmit={(values, csvFile) => (modal.plant ? updatePlant(modal.plant.id, values) : addPlant(values, csvFile))}
         />
       )}
-      {uploadFor && <UploadDataModal plant={uploadFor} onClose={() => setUploadFor(null)} />}
+      {uploadFor && (
+        <UploadDataModal plant={uploadFor} onClose={() => setUploadFor(null)} onUploaded={notifyDataChanged} />
+      )}
     </PlantContext.Provider>
   )
 }
