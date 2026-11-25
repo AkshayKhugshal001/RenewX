@@ -38,7 +38,10 @@ It is a prototype: plant data is uploaded as CSV files (there is no live connect
 - Reports – choose Performance or Maintenance report, a month or custom dates, optional AI executive summary, then
   "Download PDF" (A4 PDF with KPIs, daily energy chart, losses, forecast accuracy, anomalies, maintenance, cleaning,
   recommendations, environmental impact).
-- Settings – account settings.
+- Settings – three sections: Plants (add/edit/upload/delete), Appearance (Light / Dark / System theme, saved per
+  device), Account (display name, change password, sign out).
+- Every morning (≈ 06:00 IST) forecasts, cleaning analyses and recommendations refresh automatically for all plants
+  with a location, using the new weather forecast (no upload needed).
 
 ## Key terms
 - Performance ratio (PR): actual energy ÷ energy the installed capacity would give with the measured sunlight.

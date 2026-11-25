@@ -142,6 +142,16 @@ Runs last after each upload, after a cleaning analysis and via `POST /plants/{id
   Static is free) – not used. Vercel ruled out (libraries ≈ 534 MB, ~1 min uploads). `backend/Dockerfile` kept for
   any Docker host (listens on $PORT, default 7860).
 
+## Scheduled refresh & settings
+- Daily refresh: GitHub Actions `.github/workflows/daily-refresh.yml` (00:30 UTC = 06:00 IST, plus manual run) →
+  `/health` (wake Render) → `POST /internal/daily-refresh` (header X-Cron-Secret, hmac compare; 403 when CRON_SECRET
+  unset). Repo secrets RENEWX_API_URL, RENEWX_CRON_SECRET; Render env CRON_SECRET. In-process schedulers don't work
+  on free Render (sleeps); Render cron jobs are paid.
+- Settings page: sections Plants / Appearance / Account (`?section=`). Dark mode: colour variables (--surface,
+  --surface-2/3, --line-strong, --text-2 …) on `:root`, dark values on `:root[data-theme="dark"]`, set by
+  `lib/theme.js` before first paint (light/dark/system, localStorage). New CSS should use the variables, not hex.
+- Live data feed (device keys, ingest API, phone "device" page with QR) is planned next – not built yet.
+
 ## Decisions
 - Browser only READS data tables (RLS, select-only grants); the backend WRITES via a direct DB connection.
   Always check plant ownership in the backend, because it bypasses RLS.

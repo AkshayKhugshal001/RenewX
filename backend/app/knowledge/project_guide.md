@@ -59,6 +59,14 @@ weather_data. 003: forecast_runs, power_forecasts. 004: anomaly details/status t
 - Assistant (`assistant.py`, `llm.py`, `knowledge/*.md`): this chat. Gets these guides + a snapshot of the
   selected plant; answers only from them.
 
+## Scheduled daily refresh
+`.github/workflows/daily-refresh.yml` (GitHub Actions, 00:30 UTC + manual "Run workflow") wakes the Render backend
+and calls `POST /internal/daily-refresh` with header X-Cron-Secret (= CRON_SECRET on Render); `daily_refresh.py`
+runs forecast → cleaning → recommendations per located plant, each step isolated.
+
+## Theme
+Dark mode = CSS variables switched by `<html data-theme>` (`frontend/src/lib/theme.js`, saved in localStorage).
+
 ## Data
 Kaggle "Solar Power Generation Data" (2 plants in India, 15-min, 15 May – 17 Jun 2020), master CSVs in
 `ML/data/`. Assumed locations: Plant 1 Dehradun, Plant 2 Jaipur; capacity assumed 36 MW each. Plant 1's DC

@@ -35,3 +35,8 @@ def supabase_anon_key() -> str:
 def frontend_origins() -> list[str]:
     raw = os.getenv("FRONTEND_ORIGINS", "http://localhost:5173")
     return [o.strip() for o in raw.split(",") if o.strip()]
+
+
+def cron_secret() -> str:
+    """Secret for POST /internal/daily-refresh (empty = scheduled refresh disabled)."""
+    return os.getenv("CRON_SECRET", "").strip()

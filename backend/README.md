@@ -63,3 +63,7 @@ Optional. Put `GEMINI_API_KEY` (free, Google AI Studio) in `.env` (see `.env.exa
 (DATABASE_URL, SUPABASE_URL, SUPABASE_ANON_KEY, GEMINI_API_KEY, FRONTEND_ORIGINS = the Vercel address).
 Free instances sleep after 15 min without requests; the first request then takes ~30–60 s.
 (Hugging Face Docker Spaces now need a paid plan, so they are not used.)
+
+## Scheduled daily refresh
+`POST /internal/daily-refresh` (header `X-Cron-Secret: <CRON_SECRET>`) refreshes forecast, cleaning analysis and
+recommendations for every plant with a location. Called each morning by `.github/workflows/daily-refresh.yml`.

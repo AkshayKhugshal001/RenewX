@@ -24,3 +24,5 @@ services:
         sync: false
       - key: FRONTEND_ORIGINS
         sync: false
+      - key: CRON_SECRET
+        sync: false

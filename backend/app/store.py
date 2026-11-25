@@ -13,6 +13,23 @@ from .cleaning import READING_COLS
 CHUNK = 5000
 
 
+_PLANT_COLS = "id, name, capacity_mw, tariff_inr_per_kwh, timezone, latitude, longitude"
+
+
+def _plant_dict(row) -> dict:
+    return {"id": str(row[0]), "name": row[1], "capacity_mw": float(row[2] or 0),
+            "tariff_inr_per_kwh": float(row[3] or 0), "timezone": row[4] or "Asia/Kolkata",
+            "latitude": float(row[5]) if row[5] is not None else None,
+            "longitude": float(row[6]) if row[6] is not None else None}
+
+
+def located_plants(conn: psycopg.Connection) -> list[dict]:
+    """Every plant with a location (for the scheduled daily refresh – never exposed to users)."""
+    rows = conn.execute(f"select {_PLANT_COLS} from public.plants where latitude is not null and longitude is not null "
+                        "order by created_at").fetchall()
+    return [_plant_dict(r) for r in rows]
+
+
 def get_plant(conn: psycopg.Connection, plant_id: str, user_id: str) -> dict | None:
     """The plant, only if it belongs to this user (the backend bypasses RLS, so this check is essential)."""
     row = conn.execute(

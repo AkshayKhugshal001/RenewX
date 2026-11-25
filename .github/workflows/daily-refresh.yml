@@ -1,0 +1,29 @@
+# Every morning: wake the RenewX backend on Render and refresh forecasts, cleaning analyses and recommendations.
+# Needs two repository secrets (GitHub → Settings → Secrets and variables → Actions):
+#   RENEWX_API_URL      e.g. https://renewx-api.onrender.com   (no trailing slash)
+#   RENEWX_CRON_SECRET  same value as CRON_SECRET on Render
+name: Daily refresh
+
+on:
+  schedule:
+    - cron: "30 0 * * *"     # 00:30 UTC = 06:00 IST (GitHub may start it a few minutes late)
+  workflow_dispatch: {}      # "Run workflow" button for a manual run / demo
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Wake the backend (free Render instances sleep)
+        env:
+          API: ${{ secrets.RENEWX_API_URL }}
+        run: curl -fsS --retry 8 --retry-delay 15 --retry-all-errors --max-time 90 "$API/health"
+
+      - name: Refresh all plants
+        env:
+          API: ${{ secrets.RENEWX_API_URL }}
+          SECRET: ${{ secrets.RENEWX_CRON_SECRET }}
+        run: |
+          curl -fsS -X POST --max-time 1500 -H "X-Cron-Secret: $SECRET" "$API/internal/daily-refresh" | tee result.json
+          echo
+          python3 -c "import json; r=json.load(open('result.json')); print(f\"{r['plants']} plant(s) refreshed in {r['seconds']} s\"); [print(x) for x in r['results']]"

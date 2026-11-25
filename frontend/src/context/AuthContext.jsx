@@ -53,6 +53,19 @@ export function AuthProvider({ children }) {
         },
       }),
     signOut: () => supabase.auth.signOut(),
+    /** Change the display name (profiles table + login metadata). */
+    updateName: async (fullName) => {
+      const name = fullName.trim()
+      const { error } = await supabase.from('profiles').update({ full_name: name }).eq('id', userId)
+      if (error) return { error: error.message }
+      await supabase.auth.updateUser({ data: { full_name: name } })
+      setProfile((p) => ({ ...(p ?? {}), full_name: name }))
+      return {}
+    },
+    changePassword: async (password) => {
+      const { error } = await supabase.auth.updateUser({ password })
+      return error ? { error: error.message } : {}
+    },
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

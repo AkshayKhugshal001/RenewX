@@ -5,11 +5,13 @@ from uuid import UUID
 
 from datetime import date
 
-from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, Response, UploadFile
+import hmac
+
+from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Query, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from . import assistant, anomaly_service, config, db, environment, forecast_service, llm, panel_vision, recommendation_service, report_pdf, reports, soiling_service, store
+from . import assistant, anomaly_service, config, daily_refresh, db, environment, forecast_service, llm, panel_vision, recommendation_service, report_pdf, reports, soiling_service, store
 from .auth import get_user_id
 from .cleaning import CsvError
 from .pipeline import PlantNotFound, process_upload
@@ -207,3 +209,14 @@ def plant_report_pdf(
     safe = "".join(ch if ch.isalnum() else "-" for ch in plant["name"]).strip("-")
     name = f"RenewX_{safe}_{kind}_{start}_{end}.pdf"
     return Response(pdf, media_type="application/pdf", headers={"Content-Disposition": f'attachment; filename="{name}"'})
+
+
+# ── Scheduled daily refresh (GitHub Actions, every morning) ─────────────
+@app.post("/internal/daily-refresh")
+def scheduled_daily_refresh(x_cron_secret: str = Header(default="")):
+    """Refresh forecasts, cleaning analyses and recommendations of all located plants.
+    Protected by the CRON_SECRET shared with the scheduler; disabled when CRON_SECRET is not set."""
+    secret = config.cron_secret()
+    if not secret or not hmac.compare_digest(x_cron_secret.encode(), secret.encode()):
+        raise HTTPException(status_code=403, detail="Forbidden.")
+    return daily_refresh.run_all()
