@@ -7,6 +7,8 @@ psycopg[binary]>=3.2,<4      # direct PostgreSQL connection to Supabase
 httpx>=0.27,<1               # verify the user's Supabase login token
 python-dotenv>=1.0,<2        # read backend/.env
 scikit-learn>=1.5,<2         # forecasting models (Random Forest, Gradient Boosting)
+opencv-python-headless>=4.9,<5  # panel photo soiling check (no GUI build)
+reportlab>=4,<5              # PDF reports (tables + charts)
 
 # development only
 pytest>=8,<9

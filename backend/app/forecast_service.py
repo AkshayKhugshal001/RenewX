@@ -26,6 +26,17 @@ def _bounds(first: date, last: date, tz: str) -> tuple[pd.Timestamp, pd.Timestam
     return start, end
 
 
+def _day_runs(days: list[date], max_gap: int = 3) -> list[tuple[date, date]]:
+    """Group sorted days into stretches; a gap of more than `max_gap` days starts a new stretch."""
+    runs: list[tuple[date, date]] = []
+    for d in days:
+        if runs and (d - runs[-1][1]).days <= max_gap:
+            runs[-1] = (runs[-1][0], d)
+        else:
+            runs.append((d, d))
+    return runs
+
+
 def _summary(fitted: fc.Fitted | None) -> dict | None:
     if fitted is None:
         return None
@@ -83,10 +94,13 @@ def refresh(conn, plant: dict) -> dict:
             local = readings["ts"].dt.tz_convert(tz)
             first_day, last_day = local.min().date(), local.max().date()
             h_start, h_end = _bounds(first_day, last_day, tz)
-            needed = (h_end - h_start) / pd.Timedelta(hours=1)
-            if store.weather_hours(conn, pid, h_start.to_pydatetime(), h_end.to_pydatetime()) < 0.95 * needed:
-                w = weather.fetch_hourly(lat, lon, first_day - timedelta(days=1), last_day + timedelta(days=1), today)
-                store.upsert_weather(conn, pid, w[w["ts"] <= now_utc], "open-meteo")
+            # only the stretches of days that have readings (not the gaps between them, e.g. 2020 → 2026)
+            for run_start, run_end in _day_runs(sorted(local.dt.date.unique())):
+                r_start, r_end = _bounds(run_start, run_end, tz)
+                needed = (r_end - r_start) / pd.Timedelta(hours=1)
+                if store.weather_hours(conn, pid, r_start.to_pydatetime(), r_end.to_pydatetime()) < 0.95 * needed:
+                    w = weather.fetch_hourly(lat, lon, run_start - timedelta(days=1), run_end + timedelta(days=1), today)
+                    store.upsert_weather(conn, pid, w[w["ts"] <= now_utc], "open-meteo")
             history = store.fetch_weather(conn, pid, h_start.to_pydatetime(), (h_end + pd.Timedelta(hours=1)).to_pydatetime())
             actuals = fc.hourly_actuals(readings, usable, interval_min)
             da_fit, backtest = fc.fit_day_ahead(actuals, history, scale, tz)

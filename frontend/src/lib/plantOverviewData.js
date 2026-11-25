@@ -13,6 +13,13 @@ export const ALARM_LABELS = {
   data_gap: 'Data gap',
   inverter_dropout: 'Inverter not reporting',
   sensor_fault: 'Sensor fault',
+  // ML causes (anomaly_detection.py)
+  output_drop: 'Output drop',
+  inverter_fault: 'Inverter fault',
+  overheating: 'Overheating',
+  shading: 'Shading',
+  clipping: 'Clipping / curtailment',
+  sensor_mismatch: 'Sunlight sensor mismatch',
 }
 
 export async function fetchPlantOverview(plant) {

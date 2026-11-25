@@ -3,6 +3,7 @@ import { Plus } from 'lucide-react'
 import Sidebar from './sidebar'
 import Header from './header'
 import { usePlants } from '../../context/PlantContext'
+import AssistantChat from '../AssistantChat'
 
 export default function Layout() {
   const { plants, activePlant, loading, loadError, openAddPlant } = usePlants()
@@ -31,6 +32,7 @@ export default function Layout() {
           <Outlet context={{ plant: activePlant }} />
         </main>
       </div>
+      <AssistantChat />
     </div>
   )
 }

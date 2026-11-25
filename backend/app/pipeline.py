@@ -5,7 +5,7 @@ import logging
 
 import pandas as pd
 
-from . import analysis, db, forecast_service, store
+from . import analysis, anomaly_service, db, forecast_service, recommendation_service, soiling_service, store
 from .cleaning import CsvError, clean_csv
 from .weather import WeatherError
 
@@ -81,6 +81,30 @@ def process_upload(plant_id: str, user_id: str, file_name: str, data: bytes, kin
             except Exception:
                 log.exception("Forecast refresh failed after upload %s", upload_id)
                 warnings.append("The data was saved, but the forecast could not be updated. Try 'Refresh forecast'.")
+
+            # ML anomaly detection on all of the plant's data (also must not fail the upload)
+            try:
+                report["ml_anomalies"] = anomaly_service.run(conn, plant)
+            except Exception:
+                log.exception("Anomaly detection failed after upload %s", upload_id)
+                warnings.append("The data was saved, but ML anomaly detection could not run. "
+                                "Try 'Run detection' on the Anomalies page.")
+
+            # Soiling / cleaning / cooling analysis (needs the expected model, so it runs after the forecast)
+            try:
+                report["cleaning"] = soiling_service.run(conn, plant)
+            except Exception:
+                log.exception("Cleaning analysis failed after upload %s", upload_id)
+                warnings.append("The data was saved, but the cleaning analysis could not run. "
+                                "Try 'Refresh analysis' on the Cleaning & Cooling page.")
+
+            # AI recommendations from all module outputs (last step)
+            try:
+                report["recommendations"] = recommendation_service.run(conn, plant)
+            except Exception:
+                log.exception("Recommendations failed after upload %s", upload_id)
+                warnings.append("The data was saved, but the recommendations could not be updated. "
+                                "Try 'Refresh' on the AI Recommendations page.")
 
             store.finish_upload(conn, upload_id, "done", counts=counts, ts_from=ts_from, ts_to=ts_to, report=report)
             return {"upload_id": upload_id, "status": "done", **counts,

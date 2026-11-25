@@ -5,6 +5,7 @@
 //   power_forecasts -> expected output (ML model on the plant's own sunlight sensor) for the latest day
 // "Today" on the dashboard means the most recent day that has data (the dataset may be historical).
 import { supabase } from './supabaseClient'
+import { apiGet } from './api'
 
 const WEEK = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 const zeroSeries = (labels, keys) => labels.map((label) => ({ label, ...Object.fromEntries(keys.map((k) => [k, 0])) }))
@@ -61,12 +62,39 @@ export async function fetchDashboard(plant) {
   if (!plant?.id) return base
   const tz = plant.timezone || 'Asia/Kolkata'
 
-  const [{ data: days, error }, { count: openAlarms }] = await Promise.all([
+  const envReq = apiGet(`/plants/${plant.id}/environment`).catch(() => ({}))
+  const [{ data: days, error }, { count: openAlarms }, { data: tasks }, { data: cleanings }, { data: recs }] = await Promise.all([
     supabase.from('daily_summaries').select('*').eq('plant_id', plant.id).order('day', { ascending: false }).limit(30),
     supabase.from('anomalies').select('id', { count: 'exact', head: true }).eq('plant_id', plant.id).eq('status', 'open'),
+    // next open maintenance tasks (table from 005_maintenance.sql; an error just means no actions shown)
+    supabase.from('maintenance_tasks').select('title, due_date, status').eq('plant_id', plant.id)
+      .in('status', ['planned', 'in_progress']).order('due_date', { ascending: true, nullsFirst: false }).limit(3),
+    // water used by finished cleaning tasks
+    supabase.from('maintenance_tasks').select('completed_at, water_litres').eq('plant_id', plant.id)
+      .eq('status', 'done').eq('category', 'cleaning').not('water_litres', 'is', null).limit(500),
+    // top AI recommendation (table from 008_recommendations.sql; an error just means none shown)
+    supabase.from('recommendations').select('*').eq('plant_id', plant.id).eq('status', 'open')
+      .order('rank', { ascending: true }).limit(1),
   ])
+  const top = recs?.[0]
+  const recommendation = top ? {
+    title: top.title,
+    gainKwh: Math.round(top.gain_kwh ?? 0),
+    gainInr: Math.round(top.gain_inr ?? 0),
+    waterL: Math.max(0, Math.round(top.water_l ?? 0)),
+    impact: top.co2_kg > 0 ? `≈ ${Math.round(top.co2_kg).toLocaleString('en-IN')} kg CO₂ avoided (30 days)` : 'No extra emissions',
+    confidence: top.confidence,
+    raw: top,
+  } : null
+  const actions = (tasks ?? []).map((t) => ({
+    title: t.title,
+    when: t.due_date
+      ? `Due ${new Date(`${t.due_date}T12:00:00Z`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', timeZone: 'UTC' })}`
+      : 'No due date',
+    status: t.status === 'in_progress' ? 'In progress' : 'Planned',
+  }))
   if (error) throw error
-  if (!days?.length) return base
+  if (!days?.length) return { ...base, actions, recommendation }
 
   const [latest, previous] = days
   const lastWeek = days.slice(1, 8)
@@ -108,11 +136,21 @@ export async function fetchDashboard(plant) {
   // Loss breakdown: share of the energy the plant could have produced without that loss
   const thermal = latest.thermal_loss_kwh ?? 0
   const inverter = latest.inverter_loss_kwh ?? 0
-  const potential = (latest.energy_kwh ?? 0) + thermal + inverter
+  const soilingPct = latest.soiling_loss_pct ?? 0   // modelled by the Cleaning module
+  const soiling = soilingPct > 0 && soilingPct < 100 ? ((latest.energy_kwh ?? 0) * soilingPct) / (100 - soilingPct) : 0
+  const potential = (latest.energy_kwh ?? 0) + thermal + inverter + soiling
   const share = (x) => (potential > 0 ? (100 * x) / potential : 0)
 
   const chronological = [...days].reverse()
   const week = chronological.slice(-7)
+  const waterByDay = {}
+  for (const c of cleanings ?? []) {
+    const d = localDate.format(new Date(c.completed_at))
+    waterByDay[d] = (waterByDay[d] ?? 0) + Number(c.water_litres)
+  }
+  const waterIn = (list) => list.reduce((s, d) => s + (waterByDay[d.day] ?? 0), 0)
+  const waterWeek = waterIn(week)
+  const waterPrev = waterIn(chronological.slice(-14, -7))
   const irrPeak = Math.max(0, ...today.map((r) => r.irradiation_kw_m2 ?? 0))
 
   return {
@@ -122,14 +160,15 @@ export async function fetchDashboard(plant) {
     kpis: {
       generationKwh: round(latest.energy_kwh, 0),
       revenue: round(latest.revenue_inr, 0),
-      waterLitres: 0, // comes with the cleaning module
+      waterLitres: Math.round(waterWeek), // cleaning water over the last 7 days of data
       co2AvoidedKg: round(latest.co2_avoided_kg, 0),
-      ecologicalRisk: null,
+      ecologicalRisk: (await envReq).result?.indicator?.level ?? null,
+      ecologicalNote: (await envReq).result?.indicator?.reason ?? null,
       availability: round(latest.availability_pct, 1),
       deltas: {
         generation: pctChange(latest.energy_kwh, previous?.energy_kwh),
         revenue: pctChange(latest.revenue_inr, previous?.revenue_inr),
-        water: 0,
+        water: pctChange(waterWeek, waterPrev),
         co2: pctChange(latest.co2_avoided_kg, previous?.co2_avoided_kg),
         availability: pctChange(latest.availability_pct, avg(lastWeek.map((d) => d.availability_pct))),
       },
@@ -138,12 +177,14 @@ export async function fetchDashboard(plant) {
       irradiance: Math.round(irrPeak * 1000), // peak of the day, W/m²
       moduleTemp: round(latest.avg_module_temp_c),
       ambientTemp: round(latest.avg_ambient_temp_c),
-      soilingLoss: 0, // comes with the cleaning module
+      soilingLoss: round(soilingPct, 1),
       inverterEff: round(latest.inverter_eff_pct),
       alarms: openAlarms ?? 0,
     },
     losses: base.losses.map((l) =>
-      l.name === 'Thermal' ? { ...l, value: share(thermal) } : l.name === 'Inverter' ? { ...l, value: share(inverter) } : l,
+      l.name === 'Thermal' ? { ...l, value: share(thermal) }
+        : l.name === 'Inverter' ? { ...l, value: share(inverter) }
+          : l.name === 'Soiling' ? { ...l, value: share(soiling) } : l,
     ),
     power: {
       Today: daylight.map((r) => ({
@@ -154,9 +195,11 @@ export async function fetchDashboard(plant) {
       Week: week.map((d) => ({ label: weekdayLabel(d.day), actual: round((d.energy_kwh ?? 0) / 1000), forecast: expectedMwh(d) })),
       Month: chronological.map((d) => ({ label: monthLabel(d.day), actual: round((d.energy_kwh ?? 0) / 1000), forecast: expectedMwh(d) })),
     },
+    actions,
+    recommendation,
     water: {
-      Week: week.map((d) => ({ label: weekdayLabel(d.day), litres: 0 })),
-      Month: chronological.map((d) => ({ label: monthLabel(d.day), litres: 0 })),
+      Week: week.map((d) => ({ label: weekdayLabel(d.day), litres: waterByDay[d.day] ?? 0 })),
+      Month: chronological.map((d) => ({ label: monthLabel(d.day), litres: waterByDay[d.day] ?? 0 })),
     },
   }
 }

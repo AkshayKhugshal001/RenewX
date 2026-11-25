@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useOutletContext } from 'react-router-dom'
+import { Link, useNavigate, useOutletContext } from 'react-router-dom'
 import {
   ResponsiveContainer, ComposedChart, Area, Line, BarChart, Bar,
   PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -11,6 +11,7 @@ import {
 import { useAuth } from '../context/AuthContext'
 import { usePlants } from '../context/PlantContext'
 import { emptyDashboard, fetchDashboard } from '../lib/dashboardData'
+import { approveLabel, approveRecommendation } from '../lib/recommendationsData'
 
 const inr = (n) => `₹ ${Number(n).toLocaleString('en-IN')}`
 const num = (n) => Number(n).toLocaleString('en-IN')
@@ -58,7 +59,9 @@ const axis = { tick: { fontSize: 12, fill: '#64748b' }, axisLine: false, tickLin
 export default function Dashboard() {
   const { user, profile } = useAuth()
   const { plant } = useOutletContext()
-  const { openUploadData, dataVersion } = usePlants()
+  const { openUploadData, dataVersion, notifyDataChanged } = usePlants()
+  const navigate = useNavigate()
+  const [recBusy, setRecBusy] = useState(false)
   const [data, setData] = useState(emptyDashboard)
   const [loadError, setLoadError] = useState('')
   const [powerRange, setPowerRange] = useState('Today')
@@ -77,6 +80,15 @@ export default function Dashboard() {
   const fmtDate = (d) => d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
   const dateLabel = data.asOf ? `Data for ${fmtDate(new Date(`${data.asOf}T12:00:00Z`))}` : fmtDate(new Date())
   const { kpis, metrics, recommendation: rec } = data
+
+  async function approveTop() {
+    setRecBusy(true)
+    const res = await approveRecommendation(plant.id, rec.raw)
+    setRecBusy(false)
+    if (res.navigateTo) return navigate(res.navigateTo)
+    if (res.error) return window.alert(res.error)
+    notifyDataChanged()
+  }
 
   const lossTotal = data.losses.reduce((s, l) => s + l.value, 0)
   const pieData = lossTotal === 0 ? [{ name: 'No data', value: 1, color: '#e2e8f0' }] : data.losses
@@ -119,7 +131,9 @@ export default function Dashboard() {
           <Delta value={kpis.deltas.co2} suffix="vs. previous day" />
         </Kpi>
         <Kpi icon={Sprout} tone="green" label="Ecological Risk" value={kpis.ecologicalRisk ?? '—'}>
-          <span className="delta flat"><small>{kpis.ecologicalRisk ? 'No critical issues' : 'No data yet'}</small></span>
+          <span className="delta flat" title={kpis.ecologicalNote ?? ''}>
+            <small>{kpis.ecologicalRisk ? 'water use per MWh · see Environment' : 'No data yet'}</small>
+          </span>
         </Kpi>
         <Kpi icon={Settings} tone="gray" label="Plant Availability" value={`${kpis.availability}%`}>
           <Delta value={kpis.deltas.availability} suffix="vs. last week" />
@@ -176,7 +190,7 @@ export default function Dashboard() {
           {rec ? (
             <>
               <p className="rec-title">{rec.title}</p>
-              <p>Expected gain: +{num(rec.gainKwh)} kWh ({inr(rec.gainInr)})</p>
+              <p>Expected gain: +{num(rec.gainKwh)} kWh ({inr(rec.gainInr)}) in 30 days</p>
               <p>Water required: {num(rec.waterL)} L</p>
               <p>Environmental impact: {rec.impact}</p>
               <p>Confidence: {rec.confidence}%</p>
@@ -184,12 +198,14 @@ export default function Dashboard() {
           ) : (
             <>
               <p className="rec-title muted">No recommendation yet</p>
-              <p>Recommendations appear here once plant data is connected and the decision engine has run.</p>
+              <p>Recommendations appear here after data is uploaded and the decision engine has run.</p>
             </>
           )}
           <div className="rec-actions">
-            <button className="btn primary" disabled={!rec}>Approve</button>
-            <button className="btn" disabled={!rec}>View Details</button>
+            <button className="btn primary" disabled={!rec || recBusy} onClick={approveTop} title={rec ? approveLabel(rec.raw) : ''}>
+              {recBusy ? 'Saving…' : 'Approve'}
+            </button>
+            <button className="btn" onClick={() => navigate('/recommendations')}>View Details</button>
           </div>
         </div>
       </section>
@@ -233,7 +249,7 @@ export default function Dashboard() {
         <div className="card">
           <div className="card-head">
             <h2>Upcoming Actions</h2>
-            <a className="link" href="/recommendations">View All <ChevronRight size={14} /></a>
+            <Link className="link" to="/maintenance?tab=tasks">View All <ChevronRight size={14} /></Link>
           </div>
           {data.actions.length === 0 ? (
             <p className="empty">No actions scheduled.</p>

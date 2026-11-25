@@ -15,6 +15,10 @@ export default function PlantFormModal({ plant, onClose, onSubmit }) {
     grid_connected: plant?.grid_connected ?? true,
     status: plant?.status ?? 'online',
     tariff_inr_per_kwh: plant?.tariff_inr_per_kwh ?? '',
+    cleaning_cost_inr_per_mw: plant?.cleaning_cost_inr_per_mw ?? 6000,
+    cleaning_water_l_per_mw: plant?.cleaning_water_l_per_mw ?? 4000,
+    battery_capacity_mwh: plant?.battery_capacity_mwh ?? 10,
+    battery_power_mw: plant?.battery_power_mw ?? 5,
     latitude: plant?.latitude ?? '',
     longitude: plant?.longitude ?? '',
     timezone: plant?.timezone ?? 'Asia/Kolkata',
@@ -40,6 +44,7 @@ export default function PlantFormModal({ plant, onClose, onSubmit }) {
     if (!form.name.trim()) return setError('Plant name is required.')
     if (form.capacity_mw !== '' && Number(form.capacity_mw) < 0) return setError('Capacity cannot be negative.')
     if (form.tariff_inr_per_kwh !== '' && Number(form.tariff_inr_per_kwh) < 0) return setError('Tariff cannot be negative.')
+    if (Number(form.cleaning_cost_inr_per_mw) < 0 || Number(form.cleaning_water_l_per_mw) < 0) return setError('Cleaning cost and water cannot be negative.')
     if (form.latitude !== '' && Math.abs(Number(form.latitude)) > 90) return setError('Latitude must be between -90 and 90.')
     if (form.longitude !== '' && Math.abs(Number(form.longitude)) > 180) return setError('Longitude must be between -180 and 180.')
     if ((form.latitude === '') !== (form.longitude === '')) return setError('Enter both latitude and longitude, or neither.')
@@ -108,7 +113,33 @@ export default function PlantFormModal({ plant, onClose, onSubmit }) {
           <input type="number" min="0" step="0.01" value={form.tariff_inr_per_kwh} onChange={set('tariff_inr_per_kwh')} placeholder="e.g. 3.50" />
         </label>
 
-        <small className="hint">Capacity is used for performance ratio, tariff for revenue, and location for weather and forecasts.</small>
+        <div className="field-row">
+          <label className="field">
+            Cleaning cost (₹ per MW)
+            <input type="number" min="0" step="100" value={form.cleaning_cost_inr_per_mw} onChange={set('cleaning_cost_inr_per_mw')} />
+          </label>
+          <label className="field">
+            Cleaning water (L per MW)
+            <input type="number" min="0" step="100" value={form.cleaning_water_l_per_mw} onChange={set('cleaning_water_l_per_mw')} />
+          </label>
+        </div>
+
+        <small className="hint">
+          Capacity is used for performance ratio, tariff for revenue, location for weather and forecasts, and the cleaning
+          cost/water (defaults are rough estimates) to decide when cleaning pays off.
+        </small>
+
+        <div className="field-row">
+          <label className="field">
+            Battery what-if (MWh)
+            <input type="number" min="0" step="0.5" value={form.battery_capacity_mwh} onChange={set('battery_capacity_mwh')} />
+          </label>
+          <label className="field">
+            Battery power (MW)
+            <input type="number" min="0" step="0.5" value={form.battery_power_mw} onChange={set('battery_power_mw')} />
+          </label>
+        </div>
+        <small className="hint">Simulated battery used by AI Recommendations to show what storage would earn (0 = off).</small>
 
         <label className="check">
           <input type="checkbox" checked={form.grid_connected} onChange={set('grid_connected')} />

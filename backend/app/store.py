@@ -286,3 +286,24 @@ def update_expected_energy(conn, plant_id: str, tz: str, interval_h: float) -> N
            where s.plant_id = %(p)s and s.day = x.d""",
         {"p": plant_id, "tz": tz, "h": interval_h},
     )
+
+
+# ─────────────────────────────────────────────────────────────
+# ML anomalies
+# ─────────────────────────────────────────────────────────────
+def replace_ml_anomalies(conn, plant_id: str, events: list[dict]) -> int:
+    """Re-detection replaces OPEN ML anomalies; ones the user acknowledged/resolved are kept
+    (the same event found again then hits the unique key and is skipped)."""
+    conn.execute("delete from public.anomalies where plant_id = %s and source = 'ml' and status = 'open'", (plant_id,))
+    if not events:
+        return 0
+    with conn.cursor() as cur:
+        cur.executemany(
+            """insert into public.anomalies (plant_id, source, type, severity, ts_start, ts_end, score,
+                   expected_kw, actual_kw, energy_lost_kwh, explanation, details)
+               values (%(plant_id)s, 'ml', %(type)s, %(severity)s, %(ts_start)s, %(ts_end)s, %(score)s,
+                   %(expected_kw)s, %(actual_kw)s, %(energy_lost_kwh)s, %(explanation)s, %(details)s)
+               on conflict (plant_id, type, ts_start) do nothing""",
+            [{**e, "plant_id": plant_id, "details": Jsonb(e.get("details", {}))} for e in events],
+        )
+    return len(events)

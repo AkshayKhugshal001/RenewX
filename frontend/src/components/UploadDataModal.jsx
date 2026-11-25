@@ -21,6 +21,7 @@ function UploadReport({ r, timeZone }) {
         <li><b>{n(r.total)}</b> rows in file</li>
         <li><b>{n(r.skipped)}</b> already stored (skipped)</li>
         <li><b>{n(r.rejected)}</b> rejected</li>
+        {r.ml_anomalies && <li><b>{n(r.ml_anomalies.found)}</b> ML anomalies (all data)</li>}
       </ul>
       {r.fixes?.length > 0 && (
         <div className="report-list">

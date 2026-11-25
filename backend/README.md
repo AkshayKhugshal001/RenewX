@@ -41,3 +41,18 @@ Steps 3–4 run in one transaction: a failed upload stores nothing.
 3. `forecasting.py` compares Physics baseline / Random Forest / Gradient Boosting on held-out recent days and
    keeps the best. Results: `forecast_runs` (models, scores, notes) and `power_forecasts`.
 Weather API failure → HTTP 502 with a readable message.
+
+## Panel photo check — `POST /plants/{plant_id}/panel-photos/analyse`
+Multipart `image` (+ optional `reference`, a clean photo of the same panels). OpenCV (`panel_vision.py`) returns
+soiled area %, dust film %, severity, a rough power-loss estimate and an overlay (base64 JPEG). Nothing is stored
+by the backend – the browser saves photos in Supabase Storage (`007_panel_photos.sql`).
+
+## AI assistant — `/assistant/*`
+Optional. Put `GEMINI_API_KEY` (free, Google AI Studio) in `.env` (see `.env.example`). `GET /assistant/status`,
+`POST /assistant/chat` {plant_id, messages}, `POST /assistant/issue-draft`. The assistant's knowledge is in
+`app/knowledge/app_guide.md` and `project_guide.md` – update them when features change.
+
+## Environment and reports
+`GET /plants/{plant_id}/environment` – CO₂ avoided, equivalents, water, ecological indicator, daily conditions.
+`GET /plants/{plant_id}/reports/pdf?start=YYYY-MM-DD&end=YYYY-MM-DD&kind=performance|maintenance&ai_summary=true`
+– A4 PDF (reportlab), max one year.

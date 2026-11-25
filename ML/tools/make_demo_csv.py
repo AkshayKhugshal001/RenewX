@@ -7,6 +7,10 @@ same format as the master datasets for the last N days:
 The output is clearly synthetic – say so in the report.
 
 Usage (from RenewX/):  backend/.venv/Scripts/python ML/tools/make_demo_csv.py [--days 3] [--end 2026-11-24]
+Soiling demo:  ... --days 25 --end 2026-11-25 --soiling 0.5 --clean-on 2026-11-12
+  dust lowers output by 0.5 %/day; real rain (≥ 5 mm/day) and the cleaning date reset it.
+  The sunlight sensor stays clean, so the loss is visible as actual < expected. After uploading, mark a cleaning
+  task done on the --clean-on date in Maintenance so RenewX knows about the cleaning.
 """
 from __future__ import annotations
 
@@ -40,17 +44,30 @@ def plant_profile(master: Path) -> dict:
 
 def weather(lat: float, lon: float, start: date, end: date) -> pd.DataFrame:
     params = {"latitude": lat, "longitude": lon, "timezone": TZ, "start_date": start.isoformat(), "end_date": end.isoformat(),
-              "minutely_15": "shortwave_radiation,temperature_2m"}
+              "minutely_15": "shortwave_radiation,temperature_2m,precipitation"}
     r = httpx.get(URL, params=params, timeout=30)
     r.raise_for_status()
     m = r.json()["minutely_15"]
     # values are averages of the preceding 15 minutes, labelled by the end -> shift to the start like the Kaggle data
     ts = pd.to_datetime(m["time"]) - pd.Timedelta(minutes=15)
     return pd.DataFrame({"ts": ts, "ghi": np.array(m["shortwave_radiation"], dtype=float) / 1000,
-                         "amb": np.array(m["temperature_2m"], dtype=float)})
+                         "amb": np.array(m["temperature_2m"], dtype=float),
+                         "rain": np.array([x or 0 for x in m["precipitation"]], dtype=float)})
 
 
-def build(name: str, cfg: dict, start: date, end: date, rng: np.random.Generator) -> pd.DataFrame:
+def soiling_factor(w: pd.DataFrame, rate_pct: float, clean_on: list[date]) -> pd.Series:
+    """1 − dust loss per reading: grows by rate_pct per day, reset by ≥ 5 mm rain/day or a cleaning."""
+    day = w["ts"].dt.date
+    rain = w.groupby(day)["rain"].sum()
+    factor, since = {}, 0
+    for i, d in enumerate(sorted(rain.index)):
+        since = 0 if (i == 0 or rain[d] >= 5 or d in clean_on) else since + 1
+        factor[d] = 1 - min(0.25, rate_pct / 100 * since)
+    return day.map(factor)
+
+
+def build(name: str, cfg: dict, start: date, end: date, rng: np.random.Generator,
+          soiling_pct: float = 0.0, clean_on: list[date] | None = None) -> pd.DataFrame:
     prof = plant_profile(cfg["master"])
     w = weather(cfg["lat"], cfg["lon"], start, end + timedelta(days=1))  # +1: last slot is labelled 00:00 next day
     w = w[(w["ts"].dt.date >= start) & (w["ts"].dt.date <= end)].reset_index(drop=True)
@@ -59,6 +76,8 @@ def build(name: str, cfg: dict, start: date, end: date, rng: np.random.Generator
     module = w["amb"] + prof["heat"] * g + rng.normal(0, 0.5, len(g))
     ac = prof["k"] * g * (1 - TEMP_COEF * (module - 25)) * rng.normal(1, 0.03, len(g))
     ac = ac.where(g > 0.005, 0).clip(lower=0)
+    if soiling_pct:
+        ac = ac * soiling_factor(w, soiling_pct, clean_on or [])
     dc = ac / 0.975
     day = w["ts"].dt.date
     daily_yield = (ac * 0.25).groupby(day).cumsum()
@@ -86,13 +105,15 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--days", type=int, default=3)
     ap.add_argument("--end", type=date.fromisoformat, default=date.today() - timedelta(days=1))
+    ap.add_argument("--soiling", type=float, default=0.0, help="dust loss in %% per day (e.g. 0.5)")
+    ap.add_argument("--clean-on", type=date.fromisoformat, action="append", default=[], help="cleaning date(s)")
     a = ap.parse_args()
     start = a.end - timedelta(days=a.days - 1)
     out_dir = ROOT / "data" / "recent"
     out_dir.mkdir(parents=True, exist_ok=True)
     rng = np.random.default_rng(42)
     for name, cfg in PLANTS.items():
-        df = build(name, cfg, start, a.end, rng)
+        df = build(name, cfg, start, a.end, rng, a.soiling, a.clean_on)
         path = out_dir / f"{name}_{start}_to_{a.end}.csv"
         df.to_csv(path, index=False)
         daily = (df["AC_POWER"].astype(float) * 0.25).groupby(df["date"]).sum() / 1000

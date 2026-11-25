@@ -2,14 +2,15 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
 import { PlantProvider } from './context/PlantContext'
 import ProtectedRoute from './components/ProtectedRoute'
-import PagePlaceholder from './components/PagePlaceholder'
 import Layout from './components/layout/layout'
 import Auth from './pages/Auth'
 import Dashboard from './pages/Dashboard'
 import PlantOverview from './pages/PlantOverview'
+import CleaningCooling from './pages/CleaningCooling'
+import Environment from './pages/Environment'
+import Reports from './pages/Reports'
 import Forecasting from './pages/Forecasting'
-import Anomalies from './pages/Anomalies'
-import Optimization from './pages/Optimization'
+import Recommendations from './pages/Recommendations'
 import Maintenance from './pages/Maintenance'
 import Settings from './pages/Settings'
 
@@ -27,12 +28,12 @@ export default function App() {
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/plant-overview" element={<PlantOverview />} />
                 <Route path="/forecasting" element={<Forecasting />} />
-                <Route path="/recommendations" element={<Optimization />} />
-                <Route path="/cleaning-cooling" element={<PagePlaceholder title="Cleaning & Cooling" />} />
+                <Route path="/recommendations" element={<Recommendations />} />
+                <Route path="/cleaning-cooling" element={<CleaningCooling />} />
                 <Route path="/maintenance" element={<Maintenance />} />
-                <Route path="/environment" element={<PagePlaceholder title="Environment" />} />
-                <Route path="/reports" element={<PagePlaceholder title="Reports" />} />
-                <Route path="/anomalies" element={<Anomalies />} />
+                <Route path="/environment" element={<Environment />} />
+                <Route path="/reports" element={<Reports />} />
+                <Route path="/anomalies" element={<Navigate to="/maintenance" replace />} />
                 <Route path="/settings" element={<Settings />} />
               </Route>
             </Route>

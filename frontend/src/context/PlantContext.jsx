@@ -5,12 +5,11 @@ import { useAuth } from './AuthContext'
 import PlantFormModal from '../components/PlantFormModal'
 import UploadDataModal from '../components/UploadDataModal'
 import { uploadPlantCsv } from '../lib/plantDataUpload'
-import { refreshForecast } from '../lib/api'
+import { analyseCleaning, refreshForecast } from '../lib/api'
 
 const PlantContext = createContext(null)
 
-const COLUMNS =
-  'id, name, location, capacity_mw, grid_connected, status, latitude, longitude, timezone, tariff_inr_per_kwh, created_at'
+const COLUMNS = '*' // all plant settings (columns are added by the SQL migrations)
 const storageKey = (userId) => `renewx:active-plant:${userId}`
 
 // localStorage can throw (private mode, blocked storage) – never let that break the app
@@ -33,6 +32,14 @@ const toRow = (v) => ({
   longitude: optionalNumber(v.longitude),
   tariff_inr_per_kwh: Number(v.tariff_inr_per_kwh) || 0,
   timezone: v.timezone || 'Asia/Kolkata',
+  ...(v.battery_capacity_mwh !== undefined && {
+    battery_capacity_mwh: Number(v.battery_capacity_mwh) || 0,
+    battery_power_mw: Number(v.battery_power_mw) || 0,
+  }),
+  ...(v.cleaning_cost_inr_per_mw !== undefined && {
+    cleaning_cost_inr_per_mw: Number(v.cleaning_cost_inr_per_mw) || 0,
+    cleaning_water_l_per_mw: Number(v.cleaning_water_l_per_mw) || 0,
+  }),
 })
 
 const friendlyError = (error) =>
@@ -125,9 +132,12 @@ export function PlantProvider({ children }) {
       setPlants((prev) => prev.map((p) => (p.id === id ? data : p)))
       const changed = ['latitude', 'longitude', 'capacity_mw', 'timezone'].some((k) => String(before?.[k]) !== String(data[k]))
       if (changed && data.latitude != null) refreshInBackground(id) // forecasts depend on these
+      const costs = ['cleaning_cost_inr_per_mw', 'cleaning_water_l_per_mw', 'tariff_inr_per_kwh', 'battery_capacity_mwh', 'battery_power_mw']
+        .some((k) => String(before?.[k]) !== String(data[k]))
+      if (costs && !changed) analyseCleaning(id).then((res) => !res.error && notifyDataChanged())
       return { data }
     },
-    [plants, refreshInBackground],
+    [plants, refreshInBackground, notifyDataChanged],
   )
 
   const deletePlant = useCallback(async (id) => {
