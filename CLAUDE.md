@@ -136,11 +136,11 @@ Runs last after each upload, after a cleaning analysis and via `POST /plants/{id
 
 ## Deployment
 - Frontend: Vercel (auto-deploys from GitHub; set `VITE_API_URL` to the backend URL in Vercel env vars).
-- Backend: Hugging Face Spaces (Docker, free CPU basic 2 vCPU / 16 GB). `backend/Dockerfile` (port 7860, user 1000),
-  `backend/.dockerignore`, YAML header at the top of `backend/README.md` = Space config. Push only the backend
-  folder: `git push hf $(git subtree split --prefix backend main):main --force`. Secrets in Space settings.
-  Vercel was ruled out (libraries ≈ 534 MB > function limit; uploads run ~1 min). Measured RAM: ~195 MB idle,
-  ~320 MB peak. Render free (512 MB, sleeps after 15 min) is the fallback option.
+- Backend: Render free web service via Blueprint `render.yaml` (repo root; native Python 3.11, rootDir backend,
+  uvicorn on $PORT, health /health, secrets `sync: false`). 512 MB RAM is enough (measured ~195 MB idle, ~320 MB
+  peak); sleeps after 15 min idle (~30–60 s cold start). Hugging Face Docker/Gradio Spaces now require PRO (only
+  Static is free) – not used. Vercel ruled out (libraries ≈ 534 MB, ~1 min uploads). `backend/Dockerfile` kept for
+  any Docker host (listens on $PORT, default 7860).
 
 ## Decisions
 - Browser only READS data tables (RLS, select-only grants); the backend WRITES via a direct DB connection.

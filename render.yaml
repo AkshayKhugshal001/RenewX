@@ -1,0 +1,26 @@
+# Render Blueprint – RenewX backend (FastAPI) on Render's free plan.
+# Render → New → Blueprint → pick this GitHub repo. Secrets marked `sync: false` are asked for during setup
+# (values from backend/.env) and are never stored in the repository.
+services:
+  - type: web
+    name: renewx-api
+    runtime: python
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips "*"
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: DATABASE_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: FRONTEND_ORIGINS
+        sync: false
