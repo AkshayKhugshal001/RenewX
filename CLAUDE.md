@@ -134,6 +134,14 @@ Runs last after each upload, after a cleaning analysis and via `POST /plants/{id
 - Gemini default is now `gemini-flash-lite-latest` (2–6 s, no "thinking"); `gemini-flash-latest` was often 503 or
   > 60 s on the free tier (it thinks even with thinkingBudget 0) → only the fallback.
 
+## Deployment
+- Frontend: Vercel (auto-deploys from GitHub; set `VITE_API_URL` to the backend URL in Vercel env vars).
+- Backend: Hugging Face Spaces (Docker, free CPU basic 2 vCPU / 16 GB). `backend/Dockerfile` (port 7860, user 1000),
+  `backend/.dockerignore`, YAML header at the top of `backend/README.md` = Space config. Push only the backend
+  folder: `git push hf $(git subtree split --prefix backend main):main --force`. Secrets in Space settings.
+  Vercel was ruled out (libraries ≈ 534 MB > function limit; uploads run ~1 min). Measured RAM: ~195 MB idle,
+  ~320 MB peak. Render free (512 MB, sleeps after 15 min) is the fallback option.
+
 ## Decisions
 - Browser only READS data tables (RLS, select-only grants); the backend WRITES via a direct DB connection.
   Always check plant ownership in the backend, because it bypasses RLS.

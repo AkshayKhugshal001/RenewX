@@ -1,3 +1,14 @@
+---
+title: RenewX API
+emoji: ☀️
+colorFrom: green
+colorTo: blue
+sdk: docker
+app_port: 7860
+pinned: false
+short_description: Backend API of RenewX (solar plant monitoring & optimisation)
+---
+
 # RenewX backend (FastAPI)
 
 Receives plant CSV uploads, cleans them, stores readings in Supabase and calculates daily statistics and rule-based alarms.
@@ -56,3 +67,10 @@ Optional. Put `GEMINI_API_KEY` (free, Google AI Studio) in `.env` (see `.env.exa
 `GET /plants/{plant_id}/environment` – CO₂ avoided, equivalents, water, ecological indicator, daily conditions.
 `GET /plants/{plant_id}/reports/pdf?start=YYYY-MM-DD&end=YYYY-MM-DD&kind=performance|maintenance&ai_summary=true`
 – A4 PDF (reportlab), max one year.
+
+## Deploying on Hugging Face Spaces (free)
+The block at the top of this README configures the Space (Docker, port 7860). `Dockerfile` builds the image.
+Push only this folder to the Space (from the repository root):
+`git push hf $(git subtree split --prefix backend main):main --force`
+Set the secrets in the Space settings: DATABASE_URL, SUPABASE_URL, SUPABASE_ANON_KEY, GEMINI_API_KEY and
+FRONTEND_ORIGINS (the Vercel address, e.g. https://your-app.vercel.app). Health check: `<space-url>/health`.
