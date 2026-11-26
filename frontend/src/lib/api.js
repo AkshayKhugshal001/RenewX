@@ -13,7 +13,8 @@ export async function apiPost(path, body) {
   try {
     res = await fetch(`${API_URL}${path}`, { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body })
   } catch {
-    return { error: `Could not reach the RenewX backend at ${API_URL}. Make sure it is running.` }
+    // no response at all: the connection dropped, the server is asleep/down, or it crashed without CORS headers
+    return { error: `Could not reach the RenewX backend at ${API_URL}. Make sure it is running.`, network: true }
   }
   const json = await res.json().catch(() => ({}))
   if (!res.ok) return { error: typeof json.detail === 'string' ? json.detail : 'The request could not be processed.' }
