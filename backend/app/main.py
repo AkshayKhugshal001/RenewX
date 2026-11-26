@@ -11,7 +11,7 @@ from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Query, 
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from . import assistant, anomaly_service, config, daily_refresh, db, environment, forecast_service, llm, panel_vision, recommendation_service, report_pdf, reports, soiling_service, store
+from . import assistant, anomaly_service, config, daily_refresh, db, environment, forecast_service, live_feed, llm, panel_vision, recommendation_service, report_pdf, reports, soiling_service, store
 from .auth import get_user_id
 from .cleaning import CsvError
 from .pipeline import PlantNotFound, process_upload
@@ -24,7 +24,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=config.frontend_origins(),
     allow_methods=["GET", "POST"],
-    allow_headers=["Authorization", "Content-Type"],
+    allow_headers=["Authorization", "Content-Type", "X-Device-Key"],
 )
 
 
@@ -209,6 +209,46 @@ def plant_report_pdf(
     safe = "".join(ch if ch.isalnum() else "-" for ch in plant["name"]).strip("-")
     name = f"RenewX_{safe}_{kind}_{start}_{end}.pdf"
     return Response(pdf, media_type="application/pdf", headers={"Content-Disposition": f'attachment; filename="{name}"'})
+
+
+# ── Live data feed (simulated device → ingest) ──────────────────────────
+class NewDevice(BaseModel):
+    name: str = Field(default="Phone device", min_length=1, max_length=60)
+
+
+@app.post("/plants/{plant_id}/devices")
+def create_device(plant_id: UUID, body: NewDevice, user_id: str = Depends(get_user_id)):
+    """Create a device key. The raw key is returned ONCE (only its hash is stored)."""
+    with db.connect() as conn:
+        _owned_plant(conn, plant_id, user_id)
+        return live_feed.create_key(conn, str(plant_id), body.name)
+
+
+def _device(conn, x_device_key: str):
+    try:
+        return live_feed.authenticate(conn, x_device_key)
+    except live_feed.IngestError as e:
+        raise HTTPException(status_code=e.status, detail=e.detail)
+
+
+@app.get("/device/info")
+def device_info(x_device_key: str = Header(default="")):
+    """What the device page needs: plant facts and its output-per-sunlight profile."""
+    with db.connect() as conn:
+        _, plant = _device(conn, x_device_key)
+        return live_feed.device_info(conn, plant)
+
+
+@app.post("/ingest")
+def ingest_readings(body: live_feed.IngestBody, x_device_key: str = Header(default="")):
+    """Readings from a device (header X-Device-Key). Merged into 15-minute slots; today's stats + alarms updated."""
+    with db.connect() as conn:
+        key_id, plant = _device(conn, x_device_key)
+        try:
+            live_feed.check_rate(key_id)
+            return live_feed.ingest(conn, key_id, plant, body)
+        except live_feed.IngestError as e:
+            raise HTTPException(status_code=e.status, detail=e.detail)
 
 
 # ── Scheduled daily refresh (GitHub Actions, every morning) ─────────────

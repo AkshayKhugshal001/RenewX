@@ -24,6 +24,25 @@ def _valid_timezone(tz: str) -> str:
         return "Asia/Kolkata"
 
 
+def day_window(ts: pd.Series, tz: str) -> tuple:
+    """Whole local days (UTC start, UTC end) touched by these timestamps."""
+    local = ts.dt.tz_convert(tz)
+    return (local.min().normalize().tz_convert("UTC").to_pydatetime(),
+            (local.max().normalize() + pd.Timedelta(days=1)).tz_convert("UTC").to_pydatetime())
+
+
+def recompute_days(conn, plant_id: str, upload_id: str | None, info: analysis.PlantInfo, win_start, win_end):
+    """Recalculate rule alarms and daily summaries for whole local days from ALL stored readings.
+    Shared by CSV uploads and the live feed (call inside a transaction). Returns (summaries, alarms)."""
+    window = store.fetch_readings(conn, plant_id, win_start, win_end)
+    reference, max_inverters = store.plant_reference(conn, plant_id)
+    alarms = analysis.detect_alarms(window, info, reference, max_inverters)
+    store.replace_rule_alarms(conn, plant_id, upload_id, win_start, win_end, alarms)
+    summaries = analysis.daily_summaries(window, info, analysis.alarm_counts_by_day(alarms, info.timezone))
+    store.upsert_summaries(conn, plant_id, summaries)
+    return summaries, alarms
+
+
 def process_upload(plant_id: str, user_id: str, file_name: str, data: bytes, kind: str, mode: str) -> dict:
     with db.connect() as conn:
         plant = store.get_plant(conn, plant_id, user_id)
@@ -39,19 +58,11 @@ def process_upload(plant_id: str, user_id: str, file_name: str, data: bytes, kin
 
             # Whole local days touched by this file: they are recalculated from ALL stored readings,
             # so a day split across two daily uploads still gets correct totals.
-            local = df["ts"].dt.tz_convert(tz)
-            win_start = local.min().normalize().tz_convert("UTC")
-            win_end = (local.max().normalize() + pd.Timedelta(days=1)).tz_convert("UTC")
+            win_start, win_end = day_window(df["ts"], tz)
 
             with conn.transaction():  # all or nothing
                 counts = store.insert_readings(conn, plant_id, upload_id, df, mode)
-                window = store.fetch_readings(conn, plant_id, win_start.to_pydatetime(), win_end.to_pydatetime())
-                reference, max_inverters = store.plant_reference(conn, plant_id)
-                alarms = analysis.detect_alarms(window, info, reference, max_inverters)
-                store.replace_rule_alarms(conn, plant_id, upload_id, win_start.to_pydatetime(),
-                                          win_end.to_pydatetime(), alarms)
-                summaries = analysis.daily_summaries(window, info, analysis.alarm_counts_by_day(alarms, tz))
-                store.upsert_summaries(conn, plant_id, summaries)
+                summaries, alarms = recompute_days(conn, plant_id, upload_id, info, win_start, win_end)
 
             counts.update(total=result.rows_total, rejected=result.rows_rejected)
             ts_from, ts_to = df["ts"].min().to_pydatetime(), df["ts"].max().to_pydatetime()

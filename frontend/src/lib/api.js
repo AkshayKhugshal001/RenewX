@@ -20,7 +20,24 @@ export async function apiPost(path, body) {
   return { result: json }
 }
 
-export const refreshForecast = (plantId) => apiPost(`/plants/${plantId}/forecast/refresh`)
+/** POST a JSON body (apiPost sends FormData / no body). */
+export async function apiPostJson(path, payload) {
+  const headers = await authHeader()
+  if (!headers) return { error: 'Your session has expired. Please sign in again.' }
+  let res
+  try {
+    res = await fetch(`${API_URL}${path}`, {
+      method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+    })
+  } catch {
+    return { error: `Could not reach the RenewX backend at ${API_URL}. Make sure it is running.` }
+  }
+  const json = await res.json().catch(() => ({}))
+  if (!res.ok) return { error: typeof json.detail === 'string' ? json.detail : 'The request could not be processed.' }
+  return { result: json }
+}
+
+export const refreshForecast =(plantId) => apiPost(`/plants/${plantId}/forecast/refresh`)
 export const analyseCleaning = (plantId) => apiPost(`/plants/${plantId}/cleaning/analyse`)
 
 async function authHeader() {

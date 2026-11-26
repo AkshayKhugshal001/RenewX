@@ -140,6 +140,14 @@ export function PlantProvider({ children }) {
     [plants, refreshInBackground, notifyDataChanged],
   )
 
+  // 'manual' (CSV uploads) | 'live' (devices may send readings to /ingest) – column from 010_live_feed.sql
+  const setDataMode = useCallback(async (id, mode) => {
+    const { data, error } = await supabase.from('plants').update({ data_mode: mode }).eq('id', id).select(COLUMNS).single()
+    if (error) return { error: friendlyError(error) }
+    setPlants((prev) => prev.map((p) => (p.id === id ? data : p)))
+    return { data }
+  }, [])
+
   const deletePlant = useCallback(async (id) => {
     const { error } = await supabase.from('plants').delete().eq('id', id)
     if (error) return { error: friendlyError(error) }
@@ -158,13 +166,14 @@ export function PlantProvider({ children }) {
       addPlant,
       updatePlant,
       deletePlant,
+      setDataMode,
       openAddPlant: () => setModal({ plant: null }),
       openEditPlant: (plant) => setModal({ plant }),
       openUploadData: (plant) => setUploadFor(plant),
       dataVersion,
       notifyDataChanged,
     }),
-    [list, activePlant, loading, loadError, selectPlant, addPlant, updatePlant, deletePlant, dataVersion, notifyDataChanged],
+    [list, activePlant, loading, loadError, selectPlant, addPlant, updatePlant, deletePlant, setDataMode, dataVersion, notifyDataChanged],
   )
 
   return (

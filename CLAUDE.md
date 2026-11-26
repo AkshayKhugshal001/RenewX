@@ -1,14 +1,14 @@
 # RenewX
 
 Final-year B.Tech project: solar plant monitoring, analysis and optimization (Predict → Diagnose → Optimize).
-Data is entered manually as CSV (no live plant connection). Dataset: Kaggle "Solar Power Generation Data"
+Data is entered as CSV, or sent by a simulated live device (phone page /device) – no real plant connection. Dataset: Kaggle "Solar Power Generation Data"
 (2 plants, 15-min readings, 15 May – 17 Jun 2020); master CSVs live in `ML/data/`.
 
 ## Structure
 - `frontend/` – React 19 + Vite + React Router + Recharts + lucide-react. Supabase auth + reads (RLS).
   - `supabase/schema.sql` (profiles, plants), `002_data_pipeline.sql` (data tables), `003_forecasting.sql`
     (forecast_runs, power_forecasts), `004_anomalies.sql` (anomaly details + status timestamps), `005_maintenance.sql` (maintenance_tasks), `006_cleaning.sql` (cleaning costs, cleaning_analyses), `007_panel_photos.sql` (storage bucket panel-images +
-    panel_inspections), `008_recommendations.sql` (recommendations, battery settings), `009_support_reports.sql` – run in the SQL editor.
+    panel_inspections), `008_recommendations.sql` (recommendations, battery settings), `009_support_reports.sql`, `010_live_feed.sql` (data_mode, device_keys) – run in the SQL editor.
   - `src/lib/api.js` – backend calls with the Supabase token. `src/lib/*Data.js` – page queries (read-only).
   - Pages with real data: Dashboard, Plant Overview, Forecasting, Maintenance (tabs "Anomalies" and "Maintenance tasks"), Cleaning & Cooling, AI Recommendations, Environment, Reports.
 - `backend/` – FastAPI + pandas + psycopg. See `backend/README.md`. Run: `.venv\Scripts\uvicorn app.main:app --reload`.
@@ -147,10 +147,28 @@ Runs last after each upload, after a cleaning analysis and via `POST /plants/{id
   `/health` (wake Render) → `POST /internal/daily-refresh` (header X-Cron-Secret, hmac compare; 403 when CRON_SECRET
   unset). Repo secrets RENEWX_API_URL, RENEWX_CRON_SECRET; Render env CRON_SECRET. In-process schedulers don't work
   on free Render (sleeps); Render cron jobs are paid.
-- Settings page: sections Plants / Appearance / Account (`?section=`). Dark mode: colour variables (--surface,
+- Settings page: sections Plants / Data input / Appearance / Account (`?section=`). Dark mode: colour variables (--surface,
   --surface-2/3, --line-strong, --text-2 …) on `:root`, dark values on `:root[data-theme="dark"]`, set by
   `lib/theme.js` before first paint (light/dark/system, localStorage). New CSS should use the variables, not hex.
-- Live data feed (device keys, ingest API, phone "device" page with QR) is planned next – not built yet.
+
+## Live data feed (`live_feed.py`, `010_live_feed.sql`, `pages/Device.jsx`, `lib/deviceSim.js`, `lib/liveFeed.js`)
+- `plants.data_mode` manual | live. Settings → Data input toggles it; in live mode "Create device + QR" calls
+  `POST /plants/{id}/devices` → backend returns the raw key ONCE (`rx_…`); `device_keys` stores sha256 + prefix.
+  Browser may only select safe columns and update name/revoked_at (column grants). QR = `<origin>/device#k=KEY`
+  (fragment: never sent to servers); the page moves the key to localStorage and clears the URL.
+- `POST /ingest` (X-Device-Key, ≤ 96 readings, 1 batch / 2 s in memory, ≤ 3 days old, no future unless
+  `timelapse` = within today, AC/DC ≤ 150 % capacity) → 15-min slots, latest wins, flags {live[, timelapse]} →
+  `pipeline.recompute_days` (shared with uploads) → today's summary + rule alarms; reply has today's energy +
+  alarms. Rejected with 409 when the plant is manual. Forecast/ML/cleaning/recommendations: daily refresh only.
+- Phone `/device` (public route, `vercel.json` SPA rewrite): GET /device/info → plant + profile (median kW per
+  kW/m² at 25 °C, module heating, inverters; PR 0.8 fallback) → simulated readings on Open-Meteo minutely_15
+  weather (clear-sky fallback) or sliders. Time-lapse 4 s = next slot 06:00→19:00; real time 10 s. Faults:
+  inverter_trip / sensor_fault / output_drop (rule alarms after 2/2/4 slots), overheating (ML only). Offline queue
+  (≤ 500) in localStorage, sent in batches; 422 batches dropped, 401/409 stop.
+- Dashboard: plants in live mode poll `liveStatus` every 15 s (latest live reading + device last_seen) and reload
+  only when it changed; badge "● Live · last data … ago" (green if < 2 min).
+- Limits (say so in the viva): the phone is a simulated device; the key travels in the QR link (fine for a
+  prototype, a real logger would be provisioned once); "latest value wins" per slot instead of averaging.
 
 ## Decisions
 - Browser only READS data tables (RLS, select-only grants); the backend WRITES via a direct DB connection.

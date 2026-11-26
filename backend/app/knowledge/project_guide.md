@@ -21,6 +21,13 @@ Upload: browser → `POST /plants/{id}/uploads` (FastAPI, verifies the Supabase 
 `analysis.py` (daily_summaries + rule alarms in `anomalies`) → `forecast_service.py` → `anomaly_service.py` →
 `soiling_service.py` → `recommendation_service.py`. Every step after the readings is wrapped so a failure never
 loses the uploaded data.
+Live feed (`live_feed.py`): device → `POST /ingest` (header X-Device-Key; only the SHA-256 hash of the key is
+stored in `device_keys`) → readings merged into 15-minute slots (latest value wins, quality flag `live`, plus
+`timelapse` in demo mode) → `pipeline.recompute_days` (same code as uploads) updates today's daily_summaries and
+rule alarms. Heavy steps (forecast, ML anomalies, cleaning, recommendations) stay on the daily refresh.
+Accepted only when the plant's `data_mode` = 'live'; readings ≤ 3 days old; ≤ 96 per batch; 1 batch / 2 s.
+The phone page `/device` (`pages/Device.jsx`, `lib/deviceSim.js`) simulates readings on real Open-Meteo weather
+using the plant's profile from `GET /device/info`; it stores only the key and an offline queue in localStorage.
 Security model: the browser can only read data tables (select-only grants), except tables users manage
 themselves (plants, maintenance_tasks, panel_inspections, support_reports; recommendation/anomaly status).
 The backend writes through a direct DB connection that bypasses RLS, so it always checks plant ownership.
@@ -30,7 +37,7 @@ Secrets live only in `backend/.env` and `frontend/.env` (never committed).
 schema.sql: profiles, plants. 002: data_uploads, plant_readings (PK plant_id+ts), daily_summaries, anomalies,
 weather_data. 003: forecast_runs, power_forecasts. 004: anomaly details/status times. 005: maintenance_tasks.
 006: cleaning costs, cleaning_analyses. 007: panel_inspections + storage bucket panel-images.
-008: recommendations, battery settings. 009: support_reports.
+008: recommendations, battery settings. 009: support_reports. 010: plants.data_mode, device_keys.
 
 ## Modules and methods
 - Forecasting (`forecasting.py`, `forecast_service.py`, `weather.py`): two forecasts. Expected generation
@@ -79,6 +86,6 @@ Backend: `cd backend`, `python -m venv .venv`, `.venv\Scripts\pip install -r req
 Tests: `.venv\Scripts\python -m pytest -q`. Frontend: `cd frontend`, `npm install`, `npm run dev`.
 
 ## Known limitations (be honest in the viva)
-Prototype with manual CSV uploads; assumed plant locations and capacities; only 34 days of real data;
+Prototype with manual CSV uploads and a SIMULATED live device (phone, key in the QR link); assumed plant locations and capacities; only 34 days of real data;
 anomaly detection is plant-level (per-inverter is a planned extra); no real fault labels (injected faults);
 sample panel photos are few and some are illustrative; battery is simulated; the LLM only explains.

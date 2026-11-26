@@ -13,6 +13,7 @@ import Forecasting from './pages/Forecasting'
 import Recommendations from './pages/Recommendations'
 import Maintenance from './pages/Maintenance'
 import Settings from './pages/Settings'
+import Device from './pages/Device'
 
 export default function App() {
   return (
@@ -21,6 +22,8 @@ export default function App() {
         <PlantProvider>
           <Routes>
             <Route path="/login" element={<Auth />} />
+            {/* public: the phone authenticates with its device key, not a login */}
+            <Route path="/device" element={<Device />} />
 
             <Route element={<ProtectedRoute />}>
               <Route element={<Layout />}>

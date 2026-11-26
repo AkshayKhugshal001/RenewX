@@ -12,6 +12,7 @@ import { useAuth } from '../context/AuthContext'
 import { usePlants } from '../context/PlantContext'
 import { emptyDashboard, fetchDashboard } from '../lib/dashboardData'
 import { approveLabel, approveRecommendation } from '../lib/recommendationsData'
+import { agoText, liveStatus } from '../lib/liveFeed'
 
 const inr = (n) => `₹ ${Number(n).toLocaleString('en-IN')}`
 const num = (n) => Number(n).toLocaleString('en-IN')
@@ -66,15 +67,31 @@ export default function Dashboard() {
   const [loadError, setLoadError] = useState('')
   const [powerRange, setPowerRange] = useState('Today')
   const [waterRange, setWaterRange] = useState('Week')
+  const [live, setLive] = useState(null) // { latestSlot, lastSeen, checkedAt } for plants in live mode
+  const isLive = plant?.data_mode === 'live'
 
-  // refetch when the plant changes or after an upload (dataVersion)
+  // Live feed: a tiny check every 15 s; the full dashboard reloads only when a new reading arrived
+  useEffect(() => {
+    if (!isLive || !plant?.id) return
+    let cancelled = false
+    const check = () => liveStatus(plant.id).then((s) => {
+      if (cancelled) return
+      setLive({ ...s, checkedAt: Date.now() })
+    }).catch(() => {})
+    check()
+    const t = setInterval(check, 15000)
+    return () => { cancelled = true; clearInterval(t) }
+  }, [isLive, plant?.id])
+  const liveVersion = isLive ? live?.lastSeen : null
+
+  // refetch when the plant changes, after an upload (dataVersion) or when a live reading arrived
   useEffect(() => {
     let cancelled = false
     fetchDashboard(plant)
       .then((d) => { if (!cancelled) { setData(d); setLoadError('') } })
       .catch((e) => { if (!cancelled) { setData(emptyDashboard()); setLoadError(e.message || 'Could not load plant data.') } })
     return () => { cancelled = true }
-  }, [plant, dataVersion])
+  }, [plant, dataVersion, liveVersion])
 
   const firstName = (profile?.full_name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'there').split(' ')[0]
   const fmtDate = (d) => d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
@@ -107,7 +124,14 @@ export default function Dashboard() {
         </div>
         <p className="tagline">Cleaner Energy<br />Brighter Tomorrow</p>
         <div className="pills">
-          <span className="pill"><Radio size={16} /> {data.hasData ? 'Uploaded Data' : 'No Data'}</span>
+          {isLive ? (
+            <span className={`pill live-pill ${live?.lastSeen && live.checkedAt - new Date(live.lastSeen) < 120000 ? 'on' : ''}`}
+              title="Live feed from a device (Settings → Data input)">
+              <span className="live-dot" /> Live · last data {agoText(live?.lastSeen, live?.checkedAt)}
+            </span>
+          ) : (
+            <span className="pill"><Radio size={16} /> {data.hasData ? 'Uploaded Data' : 'No Data'}</span>
+          )}
           <span className="pill"><CalendarDays size={16} /> {dateLabel}</span>
           {plant && (
             <button className="pill pill-action" onClick={() => openUploadData(plant)}>

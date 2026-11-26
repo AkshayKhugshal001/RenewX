@@ -2,7 +2,8 @@
 
 RenewX is a solar plant monitoring, analysis and optimisation web app built as a final-year B.Tech (CSE, AI & DS)
 project at Graphic Era Hill University (team CSE27-413). Framework: Predict → Diagnose → Optimize.
-It is a prototype: plant data is uploaded as CSV files (there is no live connection to a plant).
+It is a prototype: plant data is uploaded as CSV files, or sent by a SIMULATED live device (a phone) – there is no
+connection to a real plant.
 
 ## Getting started
 - Sign up / sign in. Add a plant (top bar → plant menu → "Add plant"): name, location (type a town and pick it –
@@ -38,8 +39,14 @@ It is a prototype: plant data is uploaded as CSV files (there is no live connect
 - Reports – choose Performance or Maintenance report, a month or custom dates, optional AI executive summary, then
   "Download PDF" (A4 PDF with KPIs, daily energy chart, losses, forecast accuracy, anomalies, maintenance, cleaning,
   recommendations, environmental impact).
-- Settings – three sections: Plants (add/edit/upload/delete), Appearance (Light / Dark / System theme, saved per
-  device), Account (display name, change password, sign out).
+- Settings – four sections: Plants (add/edit/upload/delete), Data input (Manual CSV vs Live feed; in Live mode
+  "Create device + QR" makes a device key, shown once as a QR code, and lists devices with last data / Revoke),
+  Appearance (Light / Dark / System theme, saved per device), Account (display name, change password, sign out).
+- Live demo device: scan the QR with a phone → the /device page (no login). Start sending; "Time-lapse" sends the
+  next 15 minutes of today every 4 s (06:00–19:00 in ~3.5 min), "Real time" sends every 10 s. Values = real
+  weather × the plant's own output profile, or sliders. Fault buttons: inverter trip, sunlight sensor failure,
+  severe output drop (raise rule alarms within 2–4 slots) and overheating (found by the ML at the daily refresh).
+  The dashboard shows "● Live · last data … ago" and refreshes itself when new readings arrive.
 - Every morning (≈ 06:00 IST) forecasts, cleaning analyses and recommendations refresh automatically for all plants
   with a location, using the new weather forecast (no upload needed).
 
@@ -64,4 +71,8 @@ It is a prototype: plant data is uploaded as CSV files (there is no live connect
 - No day-ahead forecast: set the plant location (latitude/longitude) in "Edit plant", then "Refresh forecast".
 - Forecast says "Simulated": the uploaded data is older than 3 days – upload recent data for a live forecast.
 - Panel photos fail to save: the 007 SQL (storage bucket) must be run; photos max 6 MB, JPG/PNG/WebP.
+- Phone device says "manual mode": switch the plant to Live in Settings → Data input.
+- Phone device "No connection": the free backend sleeps after 15 min – the first request takes ~1 min; readings
+  wait in the phone's queue and are sent automatically. "Unknown/revoked key": create a new device.
+- QR code opens localhost on the phone: use the deployed site (a phone cannot open the PC's localhost).
 - Something else broken: use "Report an issue" in this chat – the team will see it.
