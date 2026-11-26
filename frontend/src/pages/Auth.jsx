@@ -4,7 +4,7 @@ import { Sun } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 
 export default function Auth() {
-  const { session, signIn, signUp } = useAuth()
+  const { session, signIn, signUp, sendPasswordReset } = useAuth()
   const [mode, setMode] = useState('login') // 'login' | 'signup'
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
@@ -14,6 +14,17 @@ export default function Auth() {
   const [info, setInfo] = useState('')
 
   if (session) return <Navigate to="/dashboard" replace />
+
+  async function forgot() {
+    setError('')
+    setInfo('')
+    if (!email.trim()) return setError('Enter your email address above first.')
+    setBusy(true)
+    const r = await sendPasswordReset(email)
+    setBusy(false)
+    if (r.error) setError(r.error)
+    else setInfo('If an account exists for this email, a reset link has been sent. Open it on this device.')
+  }
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -69,6 +80,10 @@ export default function Auth() {
             autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
           />
         </label>
+
+        {mode === 'login' && (
+          <button type="button" className="link-btn" onClick={forgot} disabled={busy}>Forgot password?</button>
+        )}
 
         {error && <p className="msg error">{error}</p>}
         {info && <p className="msg ok">{info}</p>}

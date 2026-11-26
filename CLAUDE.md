@@ -170,6 +170,28 @@ Runs last after each upload, after a cleaning analysis and via `POST /plants/{id
 - Limits (say so in the viva): the phone is a simulated device; the key travels in the QR link (fine for a
   prototype, a real logger would be provisioned once); "latest value wins" per slot instead of averaging.
 
+## Speed (2026-11-26)
+- Pages are lazy-loaded (`App.jsx`, React.lazy + Suspense in the layout) and preloaded when the browser is idle.
+  First download 329 → 152 KB gzip (login); dashboard 267 KB incl. recharts.
+- `lib/pageCache.js` `usePageData(name, plant, version, fetcher)`: in-memory stale-while-revalidate per page +
+  plant (fresh 30 s); revisits are instant. `version` = dataVersion (+ live lastSeen on the dashboard). Cleared on
+  SIGNED_OUT. Used by Dashboard, Plant Overview, Forecasting, Recommendations, Cleaning, Maintenance tabs, Environment.
+- Dashboard no longer waits for the backend: Ecological Risk loads separately (`fetchEnvironment`, shared cache
+  entry with the Environment page). First load shows skeleton shimmer (`.is-loading`).
+- Backend `auth.py` caches verified tokens (sha256) for 60 s → one Supabase round trip per minute instead of per request.
+- Not done (manual, optional): Render runs in Oregon while Supabase is in Seoul (ap-northeast-2) → ~1–2 s per backend
+  call; recreating the Render service in Singapore would cut that. A free uptime ping on /health every 10 min avoids
+  the 30–60 s cold start.
+
+## UI notes
+- Plant switcher only in the header (`PlantSwitcher`); sidebar card shows plant info + Add plant; Settings → Plants
+  has edit/upload/delete. Header shield icon = open anomalies count of the active plant → /maintenance.
+- Settings → Account (`components/AccountSettings.jsx`): rows Name/Email/Password/Session; Change opens a step
+  dialog. Step 1 always re-checks the CURRENT password (`verifyPassword` = signInWithPassword). Password → other
+  devices signed out. Email → `updateUser({email})`, Supabase sends confirmation link(s); `user.new_email` shown as
+  pending. "Forgot password" (login page + dialogs) → `/reset-password` (public page, recovery session).
+  Supabase → Auth → URL Configuration must list the site URL + `/reset-password` and `/settings` as redirect URLs.
+
 ## Decisions
 - Browser only READS data tables (RLS, select-only grants); the backend WRITES via a direct DB connection.
   Always check plant ownership in the backend, because it bypasses RLS.

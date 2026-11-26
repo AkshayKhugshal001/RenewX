@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { usePageData } from '../lib/pageCache'
 import { Link, useOutletContext } from 'react-router-dom'
 import {
   ResponsiveContainer, ComposedChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceArea,
@@ -134,8 +135,7 @@ function Detail({ plant, a, onStatus, onCreateTask, busy }) {
 export default function Anomalies() {
   const { plant } = useOutletContext()
   const { dataVersion, notifyDataChanged } = usePlants()
-  const key = `${plant?.id}:${dataVersion}`
-  const [state, setState] = useState({ key: null, rows: [], error: '' })
+  const { data: loaded, error, loading } = usePageData('anomalies', plant, dataVersion, fetchAnomalies)
   const [patched, setPatched] = useState({}) // id -> updated row (status changes made on this page)
   const [filters, setFilters] = useState({ status: 'open', source: 'all', severity: 'all', type: 'all' })
   const [selectedId, setSelectedId] = useState(null)
@@ -143,19 +143,7 @@ export default function Anomalies() {
   const [msg, setMsg] = useState({ text: '', error: false })
   const [taskFor, setTaskFor] = useState(null) // anomaly a new task is being created for
 
-  useEffect(() => {
-    let cancelled = false
-    fetchAnomalies(plant)
-      .then((rows) => !cancelled && setState({ key, rows, error: '' }))
-      .catch((e) => !cancelled && setState({ key, rows: [], error: e.message || 'Could not load anomalies.' }))
-    return () => { cancelled = true }
-  }, [plant, key])
-
-  const loading = state.key !== key
-  const all = useMemo(
-    () => (loading ? [] : state.rows.map((r) => patched[r.id] ?? r)),
-    [loading, state.rows, patched],
-  )
+  const all = useMemo(() => (loaded ?? []).map((r) => patched[r.id] ?? r), [loaded, patched])
 
   const stats = useMemo(() => {
     const ml = all.filter((a) => a.source === 'ml')
@@ -223,7 +211,7 @@ export default function Anomalies() {
           </div>
         </div>
         {msg.text && <p className={`msg ${msg.error ? 'error' : ''}`}>{msg.text}</p>}
-        {state.error && <p className="msg error">{state.error}</p>}
+        {error && <p className="msg error">{error}</p>}
       </section>
 
       <section className="kpis">

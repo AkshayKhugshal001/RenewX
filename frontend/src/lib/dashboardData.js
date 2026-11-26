@@ -3,9 +3,10 @@
 //   plant_readings  -> the latest day's 15-minute power curve + weather metrics
 //   anomalies       -> number of open alarms
 //   power_forecasts -> expected output (ML model on the plant's own sunlight sensor) for the latest day
+// Ecological Risk comes from the backend (/environment) and is loaded SEPARATELY by the page, so the
+// dashboard never waits for the (possibly sleeping) backend.
 // "Today" on the dashboard means the most recent day that has data (the dataset may be historical).
 import { supabase } from './supabaseClient'
-import { apiGet } from './api'
 
 const WEEK = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 const zeroSeries = (labels, keys) => labels.map((label) => ({ label, ...Object.fromEntries(keys.map((k) => [k, 0])) }))
@@ -62,7 +63,6 @@ export async function fetchDashboard(plant) {
   if (!plant?.id) return base
   const tz = plant.timezone || 'Asia/Kolkata'
 
-  const envReq = apiGet(`/plants/${plant.id}/environment`).catch(() => ({}))
   const [{ data: days, error }, { count: openAlarms }, { data: tasks }, { data: cleanings }, { data: recs }] = await Promise.all([
     supabase.from('daily_summaries').select('*').eq('plant_id', plant.id).order('day', { ascending: false }).limit(30),
     supabase.from('anomalies').select('id', { count: 'exact', head: true }).eq('plant_id', plant.id).eq('status', 'open'),
@@ -162,8 +162,6 @@ export async function fetchDashboard(plant) {
       revenue: round(latest.revenue_inr, 0),
       waterLitres: Math.round(waterWeek), // cleaning water over the last 7 days of data
       co2AvoidedKg: round(latest.co2_avoided_kg, 0),
-      ecologicalRisk: (await envReq).result?.indicator?.level ?? null,
-      ecologicalNote: (await envReq).result?.indicator?.reason ?? null,
       availability: round(latest.availability_pct, 1),
       deltas: {
         generation: pctChange(latest.energy_kwh, previous?.energy_kwh),

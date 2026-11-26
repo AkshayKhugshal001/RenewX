@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { usePageData } from '../lib/pageCache'
 import { Link, useOutletContext } from 'react-router-dom'
 import {
   ResponsiveContainer, ComposedChart, Bar, Line, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine,
@@ -101,22 +102,12 @@ function CoolingCard({ title, c }) {
 export default function CleaningCooling() {
   const { plant } = useOutletContext()
   const { dataVersion, notifyDataChanged, openEditPlant } = usePlants()
-  const key = `${plant?.id}:${dataVersion}`
-  const [state, setState] = useState({ key: null, plantId: null, data: null, error: '' })
+  const { data, error } = usePageData('cleaning', plant, dataVersion, fetchCleaning)
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState({ text: '', error: false })
   const [taskPreset, setTaskPreset] = useState(null)
 
-  useEffect(() => {
-    let cancelled = false
-    fetchCleaning(plant)
-      .then((data) => !cancelled && setState({ key, plantId: plant?.id, data, error: '' }))
-      .catch((e) => !cancelled && setState({ key, plantId: plant?.id, data: null, error: e.message || 'Could not load the analysis.' }))
-    return () => { cancelled = true }
-  }, [plant, key])
-
   if (!plant) return null
-  const data = state.plantId === plant.id ? state.data : null
   const a = data?.analysis
   const r = a?.result ?? {}
   const plan = r.plan ?? {}
@@ -180,7 +171,7 @@ export default function CleaningCooling() {
           </div>
         </div>
         {msg.text && <p className={`msg ${msg.error ? 'error' : ''}`}>{msg.text}</p>}
-        {state.error && <p className="msg error">{state.error}</p>}
+        {error && <p className="msg error">{error}</p>}
         {data && !a && (
           <p className="msg">No analysis yet. It runs after each upload – or press “Refresh analysis”.</p>
         )}

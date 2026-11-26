@@ -720,3 +720,47 @@ button.pill-action:hover { background: var(--green-soft); }
 .device-alarms li { font-size: 13px; padding: 8px 10px; border-radius: 8px; background: var(--surface-2); margin-top: 6px; border-left: 3px solid var(--muted); }
 .device-alarms li.medium { border-left-color: #f59e0b; } .device-alarms li.high { border-left-color: #dc2626; }
 .device-foot { margin-top: auto; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; font-size: 12px; color: var(--muted); padding: 8px 2px; }
+
+/* First load of the dashboard: grey shimmering placeholders instead of zeros */
+.is-loading .kpi-value, .is-loading .metrics b, .is-loading .delta {
+  color: transparent !important; border-radius: 6px; background: linear-gradient(90deg, var(--surface-2) 25%, var(--line) 50%, var(--surface-2) 75%);
+  background-size: 200% 100%; animation: skeleton 1.2s infinite linear;
+}
+.is-loading .kpi-value * { visibility: hidden; }
+.is-loading .chart, .is-loading .loss, .is-loading .recharts-responsive-container { opacity: .35; transition: opacity .2s; }
+@keyframes skeleton { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) { .is-loading .kpi-value, .is-loading .metrics b, .is-loading .delta { animation: none; } }
+
+/* Header alarm button (open anomalies of the active plant) */
+.alarm-btn { position: relative; display: grid; place-items: center; border-radius: 10px; }
+.alarm-btn:hover { background: var(--surface-2); }
+.alarm-count { position: absolute; top: 0; right: -2px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px;
+  background: #dc2626; color: #fff; font-size: 11px; font-weight: 700; line-height: 18px; text-align: center; }
+
+/* Settings → Account */
+.account { display: flex; flex-direction: column; gap: 16px; max-width: 760px; }
+.account-head { display: flex; align-items: center; gap: 14px; }
+.avatar.lg { width: 52px; height: 52px; font-size: 22px; flex: none; }
+.account-list { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.account-row { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-bottom: 1px solid var(--line); }
+.account-row:last-child { border-bottom: 0; }
+.account-row > svg { color: var(--muted); flex: none; }
+.account-row > div { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.account-row small { color: var(--muted); font-size: 12px; }
+.account-row strong { overflow-wrap: anywhere; }
+.account-row .pending { color: #b45309; }
+.account-row.editing form { flex: 1; display: flex; flex-direction: column; gap: 10px; }
+.account-modal { max-width: 440px; }
+.account-modal .muted-text svg { vertical-align: -3px; }
+.steps { display: flex; gap: 8px; list-style: none; padding: 0; margin: 0; flex-wrap: wrap; }
+.steps li { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); font-weight: 600; }
+.steps li + li::before { content: ''; width: 18px; height: 1px; background: var(--line-strong); }
+.steps li span { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; background: var(--surface-2); font-size: 11px; }
+.steps li.on { color: var(--text); } .steps li.on span { background: var(--green); color: #fff; }
+.steps li.done span { background: var(--green-soft); color: var(--green); }
+.pw-strength { font-size: 12px; font-weight: 600; margin-top: -4px; }
+.pw-strength.s-very-weak, .pw-strength.s-weak { color: #dc2626; } .pw-strength.s-fair { color: #b45309; }
+.pw-strength.s-good, .pw-strength.s-strong { color: #16a34a; }
+.link-btn { background: none; border: 0; padding: 0; color: var(--blue); font-size: 13px; font-weight: 600; align-self: flex-start; }
+.link-btn:hover:not(:disabled) { text-decoration: underline; }
+@media (max-width: 520px) { .account-row { flex-wrap: wrap; } .account-row .btn { margin-left: 32px; } }

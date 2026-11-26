@@ -83,3 +83,10 @@ export async function apiDownload(path, filename) {
   setTimeout(() => URL.revokeObjectURL(url), 10000)
   return {}
 }
+
+/** Environment figures (CO₂, water, ecological indicator) – shared by the Environment page and the dashboard. */
+export async function fetchEnvironment(plant) {
+  const res = await apiGet(`/plants/${plant.id}/environment`)
+  if (res.error) throw new Error(res.error)
+  return res.result
+}

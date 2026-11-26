@@ -2,11 +2,11 @@ import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import QRCode from 'qrcode'
 import {
-  Plus, Pencil, Trash2, Upload, Factory, Palette, UserRound, Sun, Moon, Monitor, LogOut, KeyRound, Check,
+  Plus, Pencil, Trash2, Upload, Factory, Palette, UserRound, Sun, Moon, Monitor, Check,
   Radio, Smartphone, Copy,
 } from 'lucide-react'
 import { usePlants } from '../context/PlantContext'
-import { useAuth } from '../context/AuthContext'
+import AccountSection from '../components/AccountSettings'
 import { getThemeChoice, setThemeChoice } from '../lib/theme'
 import { agoText, createDevice, deviceUrl, isLocalhost, listDevices, revokeDevice } from '../lib/liveFeed'
 
@@ -18,7 +18,7 @@ const SECTIONS = [
 ]
 
 function PlantsSection() {
-  const { plants, activePlant, loading, selectPlant, openAddPlant, openEditPlant, openUploadData, deletePlant } = usePlants()
+  const { plants, activePlant, loading, openAddPlant, openEditPlant, openUploadData, deletePlant } = usePlants()
   const [error, setError] = useState('')
   const [deletingId, setDeletingId] = useState(null)
 
@@ -69,9 +69,6 @@ function PlantsSection() {
                   </small>
                 </div>
                 <div className="plant-row-actions">
-                  {!isActive && (
-                    <button className="btn sm" onClick={() => selectPlant(p.id)}>Switch to</button>
-                  )}
                   <button className="btn sm" onClick={() => openUploadData(p)}>
                     <Upload size={14} /> Upload data
                   </button>
@@ -181,7 +178,7 @@ function DataInputSection() {
     <div className="settings-stack">
       <div className="card">
         <h2>Data input · {plant.name}</h2>
-        <p className="muted-text">How readings reach RenewX for this plant. Switch plants in the sidebar.</p>
+        <p className="muted-text">How readings reach RenewX for this plant. Switch plants with the plant menu at the top.</p>
         <div className="seg mode-seg" role="radiogroup" aria-label="Data input mode">
           <button role="radio" aria-checked={!live} className={!live ? 'on' : ''} disabled={busy === 'mode'} onClick={() => chooseMode('manual')}>
             <Upload size={15} /> Manual (CSV)
@@ -275,70 +272,6 @@ function AppearanceSection() {
             <small>{note}</small>
           </button>
         ))}
-      </div>
-    </div>
-  )
-}
-
-function AccountSection() {
-  const { user, profile, updateName, changePassword, signOut } = useAuth()
-  const [name, setName] = useState(profile?.full_name || user?.user_metadata?.full_name || '')
-  const [pw, setPw] = useState({ password: '', confirm: '' })
-  const [busy, setBusy] = useState('')
-  const [msg, setMsg] = useState({ text: '', error: false, for: '' })
-
-  async function saveName(e) {
-    e.preventDefault()
-    if (!name.trim()) return setMsg({ text: 'Enter a name.', error: true, for: 'name' })
-    setBusy('name')
-    const r = await updateName(name)
-    setBusy('')
-    setMsg(r.error ? { text: r.error, error: true, for: 'name' } : { text: 'Name saved.', error: false, for: 'name' })
-  }
-
-  async function savePassword(e) {
-    e.preventDefault()
-    if (pw.password.length < 8) return setMsg({ text: 'Use at least 8 characters.', error: true, for: 'pw' })
-    if (pw.password !== pw.confirm) return setMsg({ text: 'The passwords do not match.', error: true, for: 'pw' })
-    setBusy('pw')
-    const r = await changePassword(pw.password)
-    setBusy('')
-    if (r.error) return setMsg({ text: r.error, error: true, for: 'pw' })
-    setPw({ password: '', confirm: '' })
-    setMsg({ text: 'Password changed.', error: false, for: 'pw' })
-  }
-
-  const note = (k) => msg.for === k && msg.text && <p className={`msg ${msg.error ? 'error' : 'ok'}`}>{msg.text}</p>
-  return (
-    <div className="account-grid">
-      <form className="card account-card" onSubmit={saveName}>
-        <h2>Profile</h2>
-        <label className="field">Email
-          <input value={user?.email ?? ''} disabled />
-        </label>
-        <label className="field">Display name
-          <input value={name} onChange={(e) => setName(e.target.value)} maxLength={80} disabled={busy === 'name'} />
-        </label>
-        {note('name')}
-        <button className="btn primary" disabled={busy === 'name'}>{busy === 'name' ? 'Saving…' : 'Save name'}</button>
-      </form>
-
-      <form className="card account-card" onSubmit={savePassword}>
-        <h2><KeyRound size={18} /> Change password</h2>
-        <label className="field">New password
-          <input type="password" autoComplete="new-password" value={pw.password} onChange={(e) => setPw((p) => ({ ...p, password: e.target.value }))} disabled={busy === 'pw'} />
-        </label>
-        <label className="field">Repeat new password
-          <input type="password" autoComplete="new-password" value={pw.confirm} onChange={(e) => setPw((p) => ({ ...p, confirm: e.target.value }))} disabled={busy === 'pw'} />
-        </label>
-        {note('pw')}
-        <button className="btn primary" disabled={busy === 'pw'}>{busy === 'pw' ? 'Saving…' : 'Change password'}</button>
-      </form>
-
-      <div className="card account-card">
-        <h2>Session</h2>
-        <p className="muted-text">Signed in as {user?.email}. Signing out ends the session on this device.</p>
-        <button className="btn danger" onClick={() => signOut()}><LogOut size={15} /> Sign out</button>
       </div>
     </div>
   )

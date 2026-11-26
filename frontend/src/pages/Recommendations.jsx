@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { usePageData } from '../lib/pageCache'
 import { useNavigate, useOutletContext } from 'react-router-dom'
 import {
   ResponsiveContainer, ComposedChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
@@ -123,21 +124,11 @@ export default function Recommendations() {
   const { plant } = useOutletContext()
   const { dataVersion, notifyDataChanged } = usePlants()
   const navigate = useNavigate()
-  const key = `${plant?.id}:${dataVersion}`
-  const [state, setState] = useState({ key: null, plantId: null, data: null, error: '' })
+  const { data, error } = usePageData('recommendations', plant, dataVersion, fetchRecommendations)
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState({ text: '', error: false })
 
-  useEffect(() => {
-    let cancelled = false
-    fetchRecommendations(plant)
-      .then((data) => !cancelled && setState({ key, plantId: plant?.id, data, error: '' }))
-      .catch((e) => !cancelled && setState({ key, plantId: plant?.id, data: null, error: e.message || 'Could not load recommendations.' }))
-    return () => { cancelled = true }
-  }, [plant, key])
-
   if (!plant) return null
-  const data = state.plantId === plant.id ? state.data : null
   const open = data?.open ?? []
   const history = data?.history ?? []
   const tariff = plant.tariff_inr_per_kwh || 0
@@ -188,7 +179,7 @@ export default function Recommendations() {
           </div>
         </div>
         {msg.text && <p className={`msg ${msg.error ? 'error' : ''}`}>{msg.text}</p>}
-        {state.error && <p className="msg error">{state.error.includes('recommendations') ? 'Run 008_recommendations.sql in Supabase first.' : state.error}</p>}
+        {error && <p className="msg error">{error.includes('recommendations') ? 'Run 008_recommendations.sql in Supabase first.' : error}</p>}
       </section>
 
       <section className="kpis">
@@ -201,7 +192,7 @@ export default function Recommendations() {
 
       <section className="card">
         <div className="card-head"><h2>Recommended actions</h2></div>
-        {!data && !state.error ? <p className="data-note">Loading…</p> : open.length === 0 ? (
+        {!data && !error ? <p className="data-note">Loading…</p> : open.length === 0 ? (
           <p className="empty">No open recommendations. They are rebuilt after each upload – or press “Refresh”.</p>
         ) : (
           <ul className="rec-list">

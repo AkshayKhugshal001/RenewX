@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom'
 import {
   Sun, LayoutDashboard, Factory, TrendingUp, Sparkles,
-  Snowflake, Wrench, Leaf, FileText, Settings, ChevronDown, Plus,
+  Snowflake, Wrench, Leaf, FileText, Settings, Plus,
 } from 'lucide-react'
 import { usePlants } from '../../context/PlantContext'
 
@@ -18,7 +18,7 @@ const NAV = [
 ]
 
 export default function Sidebar() {
-  const { plants, activePlant: plant, selectPlant, openAddPlant } = usePlants()
+  const { activePlant: plant, openAddPlant } = usePlants()
 
   return (
     <aside className="sidebar">
@@ -58,21 +58,6 @@ export default function Sidebar() {
             <strong>No plant added</strong>
             <span>Add a plant to start</span>
           </>
-        )}
-
-        {plants.length > 0 && (
-          <div className="switch">
-            <select
-              value={plant?.id ?? ''}
-              onChange={(e) => selectPlant(e.target.value)}
-              aria-label="Switch plant"
-            >
-              {plants.map((p) => (
-                <option key={p.id} value={p.id}>{p.name}</option>
-              ))}
-            </select>
-            <ChevronDown size={16} />
-          </div>
         )}
 
         <button className="add-plant" onClick={openAddPlant}>

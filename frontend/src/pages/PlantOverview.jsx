@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import { ResponsiveContainer, ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
 import {
@@ -7,6 +6,7 @@ import {
 } from 'lucide-react'
 import { usePlants } from '../context/PlantContext'
 import { fetchPlantOverview, ALARM_LABELS } from '../lib/plantOverviewData'
+import { usePageData } from '../lib/pageCache'
 
 const num = (n, d = 0) => (n == null ? '—' : Number(n).toLocaleString('en-IN', { maximumFractionDigits: d }))
 const inr = (n) => `₹ ${num(n)}`
@@ -46,21 +46,8 @@ function DayList({ rows }) {
 export default function PlantOverview() {
   const { plant } = useOutletContext()
   const { dataVersion, openUploadData, openEditPlant } = usePlants()
-  // `key` records which plant + data version the loaded result belongs to, so a stale result is never shown
-  const key = `${plant?.id}:${dataVersion}`
-  const [state, setState] = useState({ key: null, data: null, error: '' })
-
-  useEffect(() => {
-    let cancelled = false
-    fetchPlantOverview(plant)
-      .then((data) => !cancelled && setState({ key, data, error: '' }))
-      .catch((e) => !cancelled && setState({ key, data: null, error: e.message || 'Could not load plant data.' }))
-    return () => { cancelled = true }
-  }, [plant, key])
-
-  const loading = state.key !== key
-  const data = loading ? null : state.data
-  const error = loading ? '' : state.error
+  // cached per plant: shown instantly on revisits, refreshed in the background (lib/pageCache.js)
+  const { data, error, loading } = usePageData('overview', plant, dataVersion, fetchPlantOverview)
 
   if (!plant) return null
   const t = data?.totals

@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react'
+import { usePageData } from '../lib/pageCache'
 import { useOutletContext } from 'react-router-dom'
 import { ResponsiveContainer, ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts'
 import { Leaf, Trees, Car, Home, Factory, Droplets, Info, CloudRain } from 'lucide-react'
 import { usePlants } from '../context/PlantContext'
-import { apiGet } from '../lib/api'
+import { fetchEnvironment } from '../lib/api'
 
 const num = (n, d = 0) => (n == null ? '—' : Number(n).toLocaleString('en-IN', { maximumFractionDigits: d }))
 const dayLabel = (iso, opts = { day: 'numeric', month: 'short', year: 'numeric' }) =>
@@ -27,21 +27,10 @@ function Stat({ icon: Icon, tone, label, value, note }) {
 export default function Environment() {
   const { plant } = useOutletContext()
   const { dataVersion } = usePlants()
-  const key = `${plant?.id}:${dataVersion}`
-  const [state, setState] = useState({ key: null, plantId: null, data: null, error: '' })
-
-  useEffect(() => {
-    if (!plant?.id) return undefined
-    let cancelled = false
-    apiGet(`/plants/${plant.id}/environment`).then((res) => {
-      if (!cancelled) setState({ key, plantId: plant.id, data: res.result ?? null, error: res.error ?? '' })
-    })
-    return () => { cancelled = true }
-  }, [plant, key])
+  // shared cache entry with the dashboard's Ecological Risk card
+  const { data: e, error, loading } = usePageData('environment', plant, dataVersion, fetchEnvironment)
 
   if (!plant) return null
-  const loading = state.key !== key
-  const e = state.plantId === plant.id ? state.data : null
   const t = e?.total
   const ind = e?.indicator
   const daily = (e?.daily ?? []).map((d) => ({ ...d, co2_t: Math.round(d.co2_kg / 100) / 10 }))
@@ -60,7 +49,7 @@ export default function Environment() {
           </div>
           {ind && <span className={`eco-badge ${ind.level.toLowerCase()}`}>Ecological indicator: {ind.level}</span>}
         </div>
-        {state.error && <p className="msg error">{state.error}</p>}
+        {error && <p className="msg error">{error}</p>}
         {loading && <p className="data-note">Loading…</p>}
         {!loading && e && !e.has_data && <p className="msg">No data yet – upload a CSV to see the environmental impact.</p>}
       </section>

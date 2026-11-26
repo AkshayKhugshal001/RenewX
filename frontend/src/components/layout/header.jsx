@@ -1,7 +1,35 @@
-import { useState } from 'react'
-import { Search, Bell, ChevronDown, LogOut } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { Search, ShieldAlert, ChevronDown, LogOut } from 'lucide-react'
+import { supabase } from '../../lib/supabaseClient'
+import { usePlants } from '../../context/PlantContext'
 import { useAuth } from '../../context/AuthContext'
 import PlantSwitcher from './PlantSwitcher'
+
+/** Open anomalies of the active plant (refreshed after uploads/actions and every minute). */
+function AlarmButton() {
+  const { activePlant, dataVersion } = usePlants()
+  const plantId = activePlant?.id
+  const [count, setCount] = useState({ plantId: null, n: 0 })
+  useEffect(() => {
+    if (!plantId) return
+    let cancelled = false
+    const load = () => supabase.from('anomalies').select('id', { count: 'exact', head: true })
+      .eq('plant_id', plantId).eq('status', 'open')
+      .then(({ count: n }) => !cancelled && setCount({ plantId, n: n ?? 0 }))
+    load()
+    const t = setInterval(load, 60000)
+    return () => { cancelled = true; clearInterval(t) }
+  }, [plantId, dataVersion])
+  const n = count.plantId === plantId ? count.n : 0
+  const label = n ? `${n} open alarm${n > 1 ? 's' : ''} – open Anomalies` : 'No open alarms – open Anomalies'
+  return (
+    <Link to="/maintenance" className="icon-btn alarm-btn" aria-label={label} title={label}>
+      <ShieldAlert size={22} />
+      {n > 0 && <span className="alarm-count">{n > 99 ? '99+' : n}</span>}
+    </Link>
+  )
+}
 
 export default function Header() {
   const { user, profile, signOut } = useAuth()
@@ -19,9 +47,7 @@ export default function Header() {
 
       <PlantSwitcher />
 
-      <button className="icon-btn" aria-label="Notifications">
-        <Bell size={22} />
-      </button>
+      <AlarmButton />
 
       <div className="user-menu">
         <button className="user" onClick={() => setOpen((o) => !o)} aria-expanded={open}>

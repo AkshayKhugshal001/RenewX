@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { usePageData } from '../lib/pageCache'
 import { useOutletContext } from 'react-router-dom'
 import {
   HeartPulse, ClipboardList, AlarmClock, CheckCircle2, Plus, CalendarPlus, Play, Check, Pencil,
@@ -99,24 +100,13 @@ function Group({ title, items, empty, rowProps }) {
 export default function MaintenanceTasks() {
   const { plant } = useOutletContext()
   const { dataVersion, notifyDataChanged } = usePlants()
-  const key = `${plant?.id}:${dataVersion}`
-  const [state, setState] = useState({ key: null, plantId: null, data: null, error: '' })
+  const { data, error } = usePageData('tasks', plant, dataVersion, fetchMaintenance)
   const [modal, setModal] = useState(null) // { kind: 'form', task? } | { kind: 'done', task }
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState('')
   const [showDone, setShowDone] = useState(false)
 
-  useEffect(() => {
-    let cancelled = false
-    fetchMaintenance(plant)
-      .then((data) => !cancelled && setState({ key, plantId: plant?.id, data, error: '' }))
-      .catch((e) => !cancelled && setState({ key, plantId: plant?.id, data: null, error: e.message || 'Could not load tasks.' }))
-    return () => { cancelled = true }
-  }, [plant, key])
-
   if (!plant) return null
-  // keep showing the previous result while refreshing, but never another plant's tasks
-  const data = state.plantId === plant.id ? state.data : null
   const tasks = data?.tasks ?? []
   const tariff = plant.tariff_inr_per_kwh || 0
   const h = data?.health
@@ -171,7 +161,7 @@ export default function MaintenanceTasks() {
           </div>
         </div>
         {msg && <p className="msg">{msg}</p>}
-        {state.error && <p className="msg error">{state.error}</p>}
+        {error && <p className="msg error">{error}</p>}
       </section>
 
       <section className="kpis">
@@ -191,7 +181,7 @@ export default function MaintenanceTasks() {
         </p>
       )}
 
-      {!data && !state.error ? <p className="data-note">Loading…</p> : (
+      {!data && !error ? <p className="data-note">Loading…</p> : (
         <>
           {overdue.length > 0 && <Group title="Overdue" items={overdue} rowProps={rowProps} />}
           <Group title="Upcoming" items={[...inProgress, ...upcoming]} rowProps={rowProps}

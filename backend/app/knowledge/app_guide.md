@@ -41,7 +41,7 @@ connection to a real plant.
   recommendations, environmental impact).
 - Settings – four sections: Plants (add/edit/upload/delete), Data input (Manual CSV vs Live feed; in Live mode
   "Create device + QR" makes a device key, shown once as a QR code, and lists devices with last data / Revoke),
-  Appearance (Light / Dark / System theme, saved per device), Account (display name, change password, sign out).
+  Appearance (Light / Dark / System theme, saved per device), Account (display name; Change email / Change password open a dialog that first asks for the current password; email changes need the confirmation link; "Forgot password" on the login page sends a reset link; sign out).
 - Live demo device: scan the QR with a phone → the /device page (no login). Start sending; "Time-lapse" sends the
   next 15 minutes of today every 4 s (06:00–19:00 in ~3.5 min), "Real time" sends every 10 s. Values = real
   weather × the plant's own output profile, or sliders. Fault buttons: inverter trip, sunlight sensor failure,
@@ -75,4 +75,6 @@ connection to a real plant.
 - Phone device "No connection": the free backend sleeps after 15 min – the first request takes ~1 min; readings
   wait in the phone's queue and are sent automatically. "Unknown/revoked key": create a new device.
 - QR code opens localhost on the phone: use the deployed site (a phone cannot open the PC's localhost).
+- Plant menu: switch plants only with the plant menu at the top of every page. The shield icon next to it shows the number of open alarms and opens Maintenance → Anomalies.
+- Reset/confirmation link opens a page that says "invalid or expired": request a new link (they expire), and open it in the same browser.
 - Something else broken: use "Report an issue" in this chat – the team will see it.

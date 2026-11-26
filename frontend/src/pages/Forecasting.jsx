@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { usePageData } from '../lib/pageCache'
 import { useOutletContext } from 'react-router-dom'
 import {
   ResponsiveContainer, ComposedChart, Area, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -75,18 +76,9 @@ function ModelTable({ title, m }) {
 export default function Forecasting() {
   const { plant } = useOutletContext()
   const { dataVersion, notifyDataChanged, openEditPlant, openUploadData } = usePlants()
-  const key = `${plant?.id}:${dataVersion}`
-  const [state, setState] = useState({ key: null, data: null, error: '' })
+  const { data, error, loading } = usePageData('forecast', plant, dataVersion, fetchForecast)
   const [picked, setPicked] = useState(null)
   const [refresh, setRefresh] = useState({ busy: false, error: '' })
-
-  useEffect(() => {
-    let cancelled = false
-    fetchForecast(plant)
-      .then((data) => !cancelled && setState({ key, data, error: '' }))
-      .catch((e) => !cancelled && setState({ key, data: null, error: e.message || 'Could not load the forecast.' }))
-    return () => { cancelled = true }
-  }, [plant, key])
 
   async function handleRefresh() {
     setRefresh({ busy: true, error: '' })
@@ -96,9 +88,6 @@ export default function Forecasting() {
   }
 
   if (!plant) return null
-  const loading = state.key !== key
-  const data = loading ? null : state.data
-  const error = loading ? '' : state.error
   const run = data?.run
   const mode = MODE[run?.mode] ?? MODE.none
   const hasCoords = plant.latitude != null && plant.longitude != null

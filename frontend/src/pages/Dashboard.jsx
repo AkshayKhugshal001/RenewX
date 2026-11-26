@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react'
+import { usePageData } from '../lib/pageCache'
+import { fetchEnvironment } from '../lib/api'
 import { Link, useNavigate, useOutletContext } from 'react-router-dom'
 import {
   ResponsiveContainer, ComposedChart, Area, Line, BarChart, Bar,
@@ -55,6 +57,8 @@ function Tabs({ options, value, onChange }) {
   )
 }
 
+const EMPTY = emptyDashboard()
+
 const axis = { tick: { fontSize: 12, fill: '#64748b' }, axisLine: false, tickLine: false }
 
 export default function Dashboard() {
@@ -63,8 +67,6 @@ export default function Dashboard() {
   const { openUploadData, dataVersion, notifyDataChanged } = usePlants()
   const navigate = useNavigate()
   const [recBusy, setRecBusy] = useState(false)
-  const [data, setData] = useState(emptyDashboard)
-  const [loadError, setLoadError] = useState('')
   const [powerRange, setPowerRange] = useState('Today')
   const [waterRange, setWaterRange] = useState('Week')
   const [live, setLive] = useState(null) // { latestSlot, lastSeen, checkedAt } for plants in live mode
@@ -84,19 +86,18 @@ export default function Dashboard() {
   }, [isLive, plant?.id])
   const liveVersion = isLive ? live?.lastSeen : null
 
-  // refetch when the plant changes, after an upload (dataVersion) or when a live reading arrived
-  useEffect(() => {
-    let cancelled = false
-    fetchDashboard(plant)
-      .then((d) => { if (!cancelled) { setData(d); setLoadError('') } })
-      .catch((e) => { if (!cancelled) { setData(emptyDashboard()); setLoadError(e.message || 'Could not load plant data.') } })
-    return () => { cancelled = true }
-  }, [plant, dataVersion, liveVersion])
+  // cached per plant (instant on revisits); reloads after an upload (dataVersion) or a new live reading
+  const dash = usePageData('dashboard', plant, `${dataVersion}:${liveVersion ?? ''}`, fetchDashboard)
+  const data = dash.data ?? EMPTY
+  const loadError = dash.error
+  // backend figure, loaded on its own so a sleeping backend never holds up the dashboard
+  const env = usePageData('environment', plant, dataVersion, fetchEnvironment).data
 
   const firstName = (profile?.full_name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'there').split(' ')[0]
   const fmtDate = (d) => d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
   const dateLabel = data.asOf ? `Data for ${fmtDate(new Date(`${data.asOf}T12:00:00Z`))}` : fmtDate(new Date())
-  const { kpis, metrics, recommendation: rec } = data
+  const { metrics, recommendation: rec } = data
+  const kpis = { ...data.kpis, ecologicalRisk: env?.indicator?.level ?? null, ecologicalNote: env?.indicator?.reason ?? null }
 
   async function approveTop() {
     setRecBusy(true)
@@ -111,12 +112,14 @@ export default function Dashboard() {
   const pieData = lossTotal === 0 ? [{ name: 'No data', value: 1, color: '#e2e8f0' }] : data.losses
 
   return (
-    <div className="dashboard">
+    <div className={`dashboard${dash.loading ? ' is-loading' : ''}`} aria-busy={dash.loading}>
       <div className="welcome">
         <div>
           <h1>Welcome back, {firstName}!</h1>
           <p>
-            {data.hasData
+            {dash.loading
+              ? 'Loading your plant data…'
+              : data.hasData
               ? 'Here’s how your solar plant performed on its latest day of data.'
               : plant ? 'No data yet for this plant. Upload a CSV to see its performance.' : 'Add a plant to get started.'}
           </p>
