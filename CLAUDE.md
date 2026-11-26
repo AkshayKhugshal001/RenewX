@@ -37,6 +37,12 @@ Two forecasts, refreshed after every upload, when location/capacity changes, or 
 - A refresh takes ~25–45 s (weather download + training).
 - Live demo data: `ML/tools/make_demo_csv.py` writes SYNTHETIC recent-day CSVs to `ML/data/recent/`
   (real Open-Meteo weather at the assumed locations × each plant's 2020 output-per-sunlight). Label as synthetic.
+- Team test datasets: `ML/tools/make_test_datasets.py` → `ML/data/test/RenewX_{Dehradun,Jaipur}_Plant_<start>_to_<end>.csv`
+  (61 days up to the current time, Plant 1 profile at Dehradun / Plant 2 at Jaipur, dust 0.4 / 0.6 %/day, cleanings
+  20 Oct + 25 Oct recorded and 12 Nov + 15 Nov unrecorded) + `fault_log.csv` with 10 injected faults per plant
+  (inverter dropout, overheating, shading ×4 days, data gap, inverter fault, sensor mismatch, string failure,
+  sensor fault, underperformance, clipping). Checked offline with the pipeline code on 26 Nov 2026: all 20 found,
+  0 false alarms (Dehradun clipping and 2 Jaipur shading days are named output_drop). Team guide: `docs/`.
 
 ## Anomaly detection (`anomaly_detection.py`, `anomaly_service.py`) – plant-level
 Runs after each upload (after the forecast) and via `POST /plants/{id}/anomalies/detect`; stored in `anomalies`

@@ -39,13 +39,14 @@ STEPS = [
     ("Create an account",
      "Open the site, choose <b>Sign up</b>, use your own email + name. Confirm the email if asked, then log in.",
      "Dashboard with <i>Add your first plant</i>."),
-    ("Add a plant with history",
-     "<b>Add plant</b>: name <i>Test Plant 1</i>, location search <i>Dehradun</i>, capacity <b>36</b> MW, tariff <b>3</b> "
-     "₹/kWh. Attach <i>Plant_1_Master_Dataset.csv</i> as historical data. Wait ~1 min.",
-     "Upload report: rows added, automatic fixes (e.g. DC unit fixed), warnings."),
-    ("Add recent days",
-     "Dashboard → <b>Upload data</b> → <i>Daily / recent data</i> → <i>Plant_1_2026-11-01_to_2026-11-25.csv</i>.",
-     "Dashboard now shows 25 Nov 2026: KPIs, Today curve with dashed <i>Expected</i> line."),
+    ("Add the Dehradun plant",
+     "<b>Add plant</b>: name <i>Dehradun Plant</i>, location search <i>Dehradun</i>, capacity <b>36</b> MW, tariff <b>3</b> "
+     "₹/kWh. Attach <i>RenewX_Dehradun_Plant_2026-09-27_to_2026-11-26.csv</i> as historical data. Wait 1–2 min.",
+     "Upload report: ~5,800 rows, 61 days, no rows rejected. Dashboard shows the latest day."),
+    ("Record the known cleaning",
+     "<b>Maintenance → Maintenance tasks → New task</b>: category Cleaning, due <b>20 Oct 2026</b>, save, then "
+     "<b>Mark done</b> with that date.",
+     "Task listed as done. (The 12 Nov cleaning is NOT recorded on purpose – RenewX should find it.)"),
     ("Dashboard tour",
      "Switch Power tabs Today / Week / Month. Read Key Metrics, Loss Analysis, AI Recommendation. "
      "Click the shield icon (top right).",
@@ -57,15 +58,15 @@ STEPS = [
      "Click <b>Refresh forecast</b> (30–45 s).",
      "7-day day-ahead forecast, model comparison (RMSE/MAE), accuracy of past days."),
     ("Anomalies",
-     "<b>Maintenance → Anomalies</b>: change the filters, open one anomaly, click <b>Run detection</b>, "
-     "then <b>Create task</b> from an anomaly.",
-     "Day chart with the problem period, cause and energy lost; ML + rule alarms."),
+     "<b>Maintenance → Anomalies</b>, status <i>All</i>. Compare the list with <i>fault_log.csv</i>. Open one, "
+     "click <b>Run detection</b>, then <b>Create task</b> from an anomaly.",
+     "All 10 injected faults appear (dates and causes as in the log); day chart, cause, energy lost."),
     ("Maintenance tasks",
      "Tab <b>Maintenance tasks</b>: find the new task, add one with <b>New task</b>, then <b>Mark done</b> on one.",
      "Overdue / upcoming lists, health score, before/after effect of finished work."),
     ("Cleaning &amp; Cooling",
      "Read the cleaning decision. Under panel photos click <b>Import sample photos</b>, then <b>Refresh analysis</b>.",
-     "Score 0–100 with reasons, soiling rate, photo with soiled % overlay, cooling advice."),
+     "Score 0–100 with reasons, dust rate near 0.4 %/day, the unrecorded 12 Nov cleaning, photo overlay."),
     ("AI Recommendations",
      "<b>Approve</b> one recommendation, <b>Dismiss</b> another (give a reason). Look at the battery what-if.",
      "Approved item becomes a maintenance task; ranked list with ₹ gain and confidence."),
@@ -88,10 +89,10 @@ STEPS = [
      "<b>Change email</b> (confirmation link). Log out, use <b>Forgot password?</b>. "
      "<b>Appearance</b> → Dark.",
      "Each change opens a step dialog; wrong current password is rejected; plants stay after email change."),
-    ("Second plant",
-     "Add <i>Test Plant 2</i> (Jaipur, 36 MW) with <i>Plant_2_Master_Dataset (1).csv</i>. "
+    ("Jaipur plant",
+     "Add <i>Jaipur Plant</i> (Jaipur, 36 MW, tariff 3) with <i>RenewX_Jaipur_Plant_2026-09-27_to_2026-11-26.csv</i>; record its cleaning on <b>25 Oct 2026</b>. "
      "Switch plants with the plant menu at the top.",
-     "Every page changes to the selected plant; data never mixes."),
+     "Every page changes to the selected plant; data never mixes; dust ≈ 0.6 %/day, faults as in the log."),
 ]
 
 
@@ -140,8 +141,8 @@ story = [
               "Tick each step and write down anything that looks wrong.", SUB),
     box(bullets([
         f"<b>Website:</b> {URL} (laptop, Chrome or Edge). A phone is needed for step 13.",
-        f"<b>Test files</b> (download from {REPO}, folder <i>ML/data</i>): <i>Plant_1_Master_Dataset.csv</i>, "
-        "<i>Plant_2_Master_Dataset (1).csv</i> and <i>recent/Plant_1_2026-11-01_to_2026-11-25.csv</i>.",
+        f"<b>Test files</b> (download from {REPO}, folder <i>ML/data/test</i>): <i>RenewX_Dehradun_Plant_2026-09-27_to_2026-11-26.csv</i>, "
+        "<i>RenewX_Jaipur_Plant_2026-09-27_to_2026-11-26.csv</i> and <i>fault_log.csv</i> (what RenewX should find).",
         "<b>First request can take ~1 minute</b> – the free server sleeps when unused. Wait; don't keep refreshing.",
         "Use your <b>own</b> email – never share accounts. Every account only sees its own plants.",
     ])),
@@ -150,7 +151,7 @@ story = [
     KeepTogether([
         Paragraph("Not bugs (known prototype limits)", H2),
         *bullets([
-            "Real plant data is from May–June 2020 (Kaggle); November 2026 days and the phone device are <b>simulated</b>.",
+            "The test files are <b>synthetic</b>: real weather at each city × the real 2020 behaviour of two Kaggle plants, plus injected faults and dust. The phone device is simulated too.",
             "Plant locations (Dehradun/Jaipur) and the 36 MW capacity are assumptions, so forecasts are only moderately accurate.",
             "Forecasts, ML anomalies and recommendations refresh after uploads and every morning at 06:00 – "
             "live readings update only today's statistics and rule alarms immediately.",

@@ -1,0 +1,27 @@
+plant,date,local_time,fault,renewx_should_show
+Dehradun_Plant,2026-10-03,10:00–12:30,inverter_dropout,Rule alarm: Inverter dropout (5 of 22 inverters offline)
+Dehradun_Plant,2026-10-09,11:00–14:00,overheating,ML anomaly: Overheating (modules +15 °C)
+Dehradun_Plant,2026-10-15 – 2026-10-18,07:30–09:00,shading,ML anomaly: Shading – or Output drop – in the same morning window (4 days in a row)
+Dehradun_Plant,2026-10-22,11:00–13:00,data_gap,Rule alarm: Data gap (2 h of readings missing)
+Dehradun_Plant,2026-10-28,10:00–12:00,inverter_fault,"ML anomaly: Inverter fault (AC 20 % low, DC normal)"
+Dehradun_Plant,2026-11-04,09:00–12:00,sensor_mismatch,ML anomaly: Sensor mismatch (sunlight sensor reads 30 % low)
+Dehradun_Plant,2026-11-10,11:00–14:00,string_failure,ML anomaly: Output drop (25 % of the array disconnected)
+Dehradun_Plant,2026-11-14,12:00–13:30,sensor_fault,Rule alarm: Sensor fault (sunlight sensor reads 0 while producing)
+Dehradun_Plant,2026-11-19,10:00–13:00,underperformance,Rule alarm: Underperformance (output 40 % of normal)
+Dehradun_Plant,2026-11-23,10:30–14:30,clipping,ML anomaly: Clipping or Output drop (output capped at 70 % of the day's peak)
+Dehradun_Plant,2026-10-20,whole day,cleaning,Panels cleaned – add a DONE cleaning task on this date in Maintenance
+Dehradun_Plant,2026-11-12,whole day,cleaning,Unrecorded cleaning – Cleaning & Cooling should detect the jump by itself
+Dehradun_Plant,2026-09-27 – 2026-11-26,,soiling,"Dust build-up ≈ 0.4 %/day, reset by rain ≥ 5 mm/day and cleanings"
+Jaipur_Plant,2026-10-05,10:00–12:30,inverter_dropout,Rule alarm: Inverter dropout (5 of 22 inverters offline)
+Jaipur_Plant,2026-10-11,11:00–14:00,overheating,ML anomaly: Overheating (modules +15 °C)
+Jaipur_Plant,2026-10-17 – 2026-10-20,07:30–09:00,shading,ML anomaly: Shading – or Output drop – in the same morning window (4 days in a row)
+Jaipur_Plant,2026-10-24,11:00–13:00,data_gap,Rule alarm: Data gap (2 h of readings missing)
+Jaipur_Plant,2026-10-30,10:00–12:00,inverter_fault,"ML anomaly: Inverter fault (AC 20 % low, DC normal)"
+Jaipur_Plant,2026-11-06,09:00–12:00,sensor_mismatch,ML anomaly: Sensor mismatch (sunlight sensor reads 30 % low)
+Jaipur_Plant,2026-11-12,11:00–14:00,string_failure,ML anomaly: Output drop (25 % of the array disconnected)
+Jaipur_Plant,2026-11-16,12:00–13:30,sensor_fault,Rule alarm: Sensor fault (sunlight sensor reads 0 while producing)
+Jaipur_Plant,2026-11-21,10:00–13:00,underperformance,Rule alarm: Underperformance (output 40 % of normal)
+Jaipur_Plant,2026-11-25,10:30–14:30,clipping,ML anomaly: Clipping or Output drop (output capped at 70 % of the day's peak)
+Jaipur_Plant,2026-10-25,whole day,cleaning,Panels cleaned – add a DONE cleaning task on this date in Maintenance
+Jaipur_Plant,2026-11-15,whole day,cleaning,Unrecorded cleaning – Cleaning & Cooling should detect the jump by itself
+Jaipur_Plant,2026-09-27 – 2026-11-26,,soiling,"Dust build-up ≈ 0.6 %/day, reset by rain ≥ 5 mm/day and cleanings"
